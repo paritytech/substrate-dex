@@ -37,6 +37,7 @@ type BalanceOf<T> = <T as Config>::Balance;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use frame_benchmarking::BenchmarkParameter::c;
     use frame_support::pallet_prelude::*;
     use frame_support::sp_runtime::traits::StaticLookup;
     use frame_support::traits::tokens::Balance;
@@ -56,6 +57,7 @@ pub mod pallet {
         type Currency: ReservableCurrency<Self::AccountId>
             + IsType<<Self as pallet_assets::Config>::Currency>;
 
+        // FIXME: Remove this and allow different types for currency and assets
         /// Single balance type for base currency and assets.
         type Balance: IsType<<<Self as Config>::Currency as Currency<AccountIdOf<Self>>>::Balance>
             + IsType<<Self as pallet_assets::Config>::Balance>
@@ -72,13 +74,38 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        // TODO
+        /// A new exchange was created [asset_id]
+        ExchangeCreated(T::AssetId),
+        /// Liquidity was added to an exchange [provider_id, asset_id, currency_amount, token_amount, liquidity_minted]
+        LiquidityAdded(
+            T::AccountId,
+            T::AssetId,
+            BalanceOf<T>,
+            BalanceOf<T>,
+            BalanceOf<T>,
+        ),
     }
 
     #[pallet::error]
     pub enum Error<T> {
         /// Asset with the specified ID does not exist
         AssetNotFound,
+        /// Not enough free balance to add liquidity
+        BalanceTooLow,
+        /// Not enough tokens to add liquidity
+        NotEnoughTokens,
+        /// Zero value provided for `max_tokens` parameter
+        MaxTokensIsZero,
+        /// Zero value provided for `currency_amount` parameter
+        CurrencyAmountIsZero,
+        /// Zero value provided for `min_liquidity` parameter
+        MinLiquidityIsZero,
+        /// No exchange found for the given `asset_id`
+        ExchangeNotFound,
+        /// Specified `max_tokens` is too low to match `currency_amount`
+        MaxTokensTooLow,
+        /// Specified `min_liquidity` is too high to match `currency_amount`
+        MinLiquidityTooHigh,
     }
 
     #[derive(
@@ -86,10 +113,13 @@ pub mod pallet {
     )]
     pub struct Exchange<AssetId, AccountId: Ord, Balance, MaxProviders: Get<u32>> {
         pub asset_id: AssetId,
-        pub total_supply: Balance,
+        pub total_liquidity: Balance,
+        pub currency_reserve: Balance,
+        pub token_reserve: Balance,
         pub balances: BoundedBTreeMap<AccountId, Balance, MaxProviders>,
     }
 
+    // A type alias for convenience
     type ExchangeOf<T> = Exchange<
         <T as pallet_assets::Config>::AssetId,
         AccountIdOf<T>,
@@ -120,14 +150,20 @@ pub mod pallet {
                 asset_id,
                 Exchange {
                     asset_id,
-                    total_supply: <BalanceOf<T>>::default(),
+                    total_liquidity: <BalanceOf<T>>::default(),
+                    currency_reserve: <BalanceOf<T>>::default(),
+                    token_reserve: <BalanceOf<T>>::default(),
                     balances: BoundedBTreeMap::new(),
                 },
             );
 
+            Self::deposit_event(Event::ExchangeCreated(asset_id));
             Ok(())
         }
 
+        /// Add liquidity to an exchange.
+        ///
+        /// The dispatch origin for this call must be _Signed_.
         #[pallet::weight(1000)]
         pub fn add_liquidity(
             origin: OriginFor<T>,
@@ -136,7 +172,60 @@ pub mod pallet {
             min_liquidity: BalanceOf<T>,
             max_tokens: BalanceOf<T>,
         ) -> DispatchResult {
-            unimplemented!()
+            // -------------------------- Validation part --------------------------
+            let caller = ensure_signed(origin)?;
+            ensure!(
+                currency_amount > 0u32.into(),
+                Error::<T>::CurrencyAmountIsZero
+            );
+            ensure!(max_tokens > 0u32.into(), Error::<T>::MaxTokensIsZero);
+            ensure!(
+                <T as Config>::Currency::free_balance(&caller) >= currency_amount.into(),
+                Error::<T>::BalanceTooLow
+            );
+            match <pallet_assets::Pallet<T>>::maybe_balance(asset_id, &caller) {
+                None => Err(Error::<T>::AssetNotFound)?,
+                Some(balance) => ensure!(balance >= max_tokens.into(), Error::<T>::NotEnoughTokens),
+            }
+            let mut exchange = match <Exchanges<T>>::get(asset_id) {
+                Some(exchange) => exchange,
+                None => Err(Error::<T>::ExchangeNotFound)?,
+            };
+
+            // -------------------- Token/liquidity computation --------------------
+            let (token_amount, liquidity_minted) = if exchange.total_liquidity > 0u32.into() {
+                ensure!(min_liquidity > 0u32.into(), Error::<T>::MinLiquidityIsZero);
+                let token_amount = currency_amount * exchange.token_reserve
+                    / exchange.currency_reserve
+                    + 1u32.into();
+                let liquidity_minted =
+                    currency_amount * exchange.total_liquidity / exchange.currency_reserve;
+                ensure!(token_amount <= max_tokens, Error::<T>::MaxTokensTooLow);
+                ensure!(
+                    liquidity_minted >= min_liquidity,
+                    Error::<T>::MinLiquidityTooHigh
+                );
+                (token_amount, liquidity_minted)
+            } else {
+                (currency_amount, min_liquidity)
+            };
+
+            // --------------------- Currency & token transfer ---------------------
+            // TODO: Derive account from pallet and make transfers
+
+            // -------------------------- Balances update --------------------------
+            exchange.currency_reserve += currency_amount;
+            exchange.token_reserve += token_amount;
+            exchange.total_liquidity += liquidity_minted;
+
+            Self::deposit_event(Event::LiquidityAdded(
+                caller,
+                asset_id,
+                currency_amount,
+                token_amount,
+                liquidity_minted,
+            ));
+            Ok(())
         }
     }
 }
