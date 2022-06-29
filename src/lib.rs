@@ -65,7 +65,8 @@ pub mod pallet {
             + MaxEncodedLen;
 
         /// Maximum number of liquidity providers per exchange.
-        type MaxExchangeProviders: Get<u32> + TypeInfo;
+        #[pallet::constant]
+        type MaxExchangeProviders: Get<u32>;
 
         /// Information on runtime weights.
         type WeightInfo: WeightInfo;
@@ -106,26 +107,26 @@ pub mod pallet {
         MaxTokensTooLow,
         /// Specified `min_liquidity` is too high to match `currency_amount`
         MinLiquidityTooHigh,
+        /// Maximum number of liquidity providers for the exchange reached
+        MaxProvidersReached,
     }
 
     #[derive(
         Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, Default, MaxEncodedLen, TypeInfo,
     )]
-    pub struct Exchange<AssetId, AccountId: Ord, Balance, MaxProviders: Get<u32>> {
+    pub struct Exchange<AssetId, Balance, BalanceMap> {
         pub asset_id: AssetId,
         pub total_liquidity: Balance,
         pub currency_reserve: Balance,
         pub token_reserve: Balance,
-        pub balances: BoundedBTreeMap<AccountId, Balance, MaxProviders>,
+        pub balances: BalanceMap,
     }
 
-    // A type alias for convenience
-    type ExchangeOf<T> = Exchange<
-        <T as pallet_assets::Config>::AssetId,
-        AccountIdOf<T>,
-        BalanceOf<T>,
-        <T as Config>::MaxExchangeProviders,
-    >;
+    // Type aliases for convenience
+    type BalanceMap<T> =
+        BoundedBTreeMap<AccountIdOf<T>, BalanceOf<T>, <T as Config>::MaxExchangeProviders>;
+    type ExchangeOf<T> =
+        Exchange<<T as pallet_assets::Config>::AssetId, BalanceOf<T>, BalanceMap<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn exchanges)]
@@ -191,6 +192,16 @@ pub mod pallet {
                 Some(exchange) => exchange,
                 None => Err(Error::<T>::ExchangeNotFound)?,
             };
+            let caller_liquidity = match exchange.balances.get_mut(&caller) {
+                Some(balance) => balance,
+                None => {
+                    exchange
+                        .balances
+                        .try_insert(caller.clone(), 0u32.into())
+                        .map_err(|_| Error::<T>::MaxProvidersReached)?;
+                    exchange.balances.get_mut(&caller).unwrap()
+                }
+            };
 
             // -------------------- Token/liquidity computation --------------------
             let (token_amount, liquidity_minted) = if exchange.total_liquidity > 0u32.into() {
@@ -217,6 +228,7 @@ pub mod pallet {
             exchange.currency_reserve += currency_amount;
             exchange.token_reserve += token_amount;
             exchange.total_liquidity += liquidity_minted;
+            *caller_liquidity += liquidity_minted;
 
             Self::deposit_event(Event::LiquidityAdded(
                 caller,
