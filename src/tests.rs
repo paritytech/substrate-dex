@@ -10,9 +10,9 @@ fn create_exchange() {
             Dex::exchanges(ASSET_B).unwrap(),
             Exchange {
                 asset_id: ASSET_B,
-                total_liquidity: 0u64,
-                currency_reserve: 0u64,
-                token_reserve: 0u64,
+                total_liquidity: 0,
+                currency_reserve: 0,
+                token_reserve: 0,
                 balances: BoundedBTreeMap::new()
             }
         );
@@ -56,37 +56,37 @@ fn add_liquidity() {
         assert_ok!(Dex::add_liquidity(
             Origin::signed(ACCOUNT_A),
             ASSET_A,
-            1_000u64,
-            0u64, // `min_liquidity` is ignored if there's no liquidity yet
-            1_000u64,
+            1_000,
+            0, // `min_liquidity` is ignored if there's no liquidity yet
+            1_000,
         ));
         let exchange = Dex::exchanges(ASSET_A).unwrap();
-        assert_eq!(exchange.total_liquidity, 1_000u64);
-        assert_eq!(exchange.currency_reserve, 1_000u64);
-        assert_eq!(exchange.token_reserve, 1_000u64);
+        assert_eq!(exchange.total_liquidity, 1_000);
+        assert_eq!(exchange.currency_reserve, 1_000);
+        assert_eq!(exchange.token_reserve, 1_000);
         let balance = exchange.balances.get(&ACCOUNT_A).unwrap();
-        assert_eq!(balance, &1_000u64);
+        assert_eq!(balance, &1_000);
         assert_eq!(
             last_event(),
-            crate::Event::LiquidityAdded(ACCOUNT_A, ASSET_A, 1_000u64, 1_000u64, 1_000u64)
+            crate::Event::LiquidityAdded(ACCOUNT_A, ASSET_A, 1_000, 1_000, 1_000)
         );
 
         assert_ok!(Dex::add_liquidity(
             Origin::signed(ACCOUNT_B),
             ASSET_A,
-            500u64,
-            500u64,
-            1_000u64,
+            500,
+            500,
+            1_000,
         ));
         let exchange = Dex::exchanges(ASSET_A).unwrap();
-        assert_eq!(exchange.total_liquidity, 1_500u64);
-        assert_eq!(exchange.currency_reserve, 1_500u64);
-        assert_eq!(exchange.token_reserve, 1_501u64);
+        assert_eq!(exchange.total_liquidity, 1_500);
+        assert_eq!(exchange.currency_reserve, 1_500);
+        assert_eq!(exchange.token_reserve, 1_501);
         let balance = exchange.balances.get(&ACCOUNT_B).unwrap();
-        assert_eq!(balance, &500u64);
+        assert_eq!(balance, &500);
         assert_eq!(
             last_event(),
-            crate::Event::LiquidityAdded(ACCOUNT_B, ASSET_A, 500u64, 501u64, 500u64)
+            crate::Event::LiquidityAdded(ACCOUNT_B, ASSET_A, 500, 501, 500)
         );
     })
 }
@@ -95,7 +95,7 @@ fn add_liquidity() {
 fn add_liquidity_unsigned() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::add_liquidity(Origin::none(), ASSET_A, 1_000u64, 1_000u64, 1_000u64,),
+            Dex::add_liquidity(Origin::none(), ASSET_A, 1_000, 1_000, 1_000,),
             frame_support::error::BadOrigin
         );
     })
@@ -105,7 +105,7 @@ fn add_liquidity_unsigned() {
 fn add_liquidity_zero_currency() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 0u64, 1_000u64, 1_000u64,),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 0, 1_000, 1_000,),
             Error::<Test>::CurrencyAmountIsZero
         );
     })
@@ -115,7 +115,7 @@ fn add_liquidity_zero_currency() {
 fn add_liquidity_zero_tokens() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000u64, 1_000u64, 0u64,),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 0,),
             Error::<Test>::MaxTokensIsZero
         );
     })
@@ -128,9 +128,9 @@ fn add_liquidity_balance_too_low() {
             Dex::add_liquidity(
                 Origin::signed(ACCOUNT_A),
                 ASSET_A,
-                INIT_BALANCE + 1u64,
-                1_000u64,
-                1_000u64,
+                INIT_BALANCE + 1,
+                1_000,
+                1_000,
             ),
             Error::<Test>::BalanceTooLow
         );
@@ -141,13 +141,7 @@ fn add_liquidity_balance_too_low() {
 fn add_liquidity_asset_not_found() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::add_liquidity(
-                Origin::signed(ACCOUNT_A),
-                2137,
-                1_000u64,
-                1_000u64,
-                1_000u64,
-            ),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_A), 2137, 1_000, 1_000, 1_000,),
             Error::<Test>::AssetNotFound
         );
     })
@@ -160,8 +154,8 @@ fn add_liquidity_not_enough_tokens() {
             Dex::add_liquidity(
                 Origin::signed(ACCOUNT_A),
                 ASSET_A,
-                1_000u64,
-                1_000u64,
+                1_000,
+                1_000,
                 INIT_BALANCE + 1,
             ),
             Error::<Test>::NotEnoughTokens
@@ -173,13 +167,7 @@ fn add_liquidity_not_enough_tokens() {
 fn add_liquidity_exchange_not_found() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::add_liquidity(
-                Origin::signed(ACCOUNT_A),
-                ASSET_B,
-                1_000u64,
-                1_000u64,
-                1_000u64,
-            ),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, 1_000, 1_000, 1_000,),
             Error::<Test>::ExchangeNotFound
         );
     })
@@ -189,30 +177,10 @@ fn add_liquidity_exchange_not_found() {
 fn add_liquidity_max_providers_reached() {
     new_test_ext().execute_with(|| {
         // Max providers is 2, so accounts A&B will fill in all slots.
-        Dex::add_liquidity(
-            Origin::signed(ACCOUNT_A),
-            ASSET_A,
-            1_000u64,
-            1_000u64,
-            1_000u64,
-        )
-        .unwrap();
-        Dex::add_liquidity(
-            Origin::signed(ACCOUNT_B),
-            ASSET_A,
-            1_000u64,
-            1_000u64,
-            1_001u64,
-        )
-        .unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 1_000, 1_001).unwrap();
         assert_noop!(
-            Dex::add_liquidity(
-                Origin::signed(ACCOUNT_C),
-                ASSET_A,
-                1_000u64,
-                1_000u64,
-                1_001u64,
-            ),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_C), ASSET_A, 1_000, 1_000, 1_001,),
             Error::<Test>::MaxProvidersReached
         );
     })
@@ -222,16 +190,9 @@ fn add_liquidity_max_providers_reached() {
 fn add_liquidity_zero_min_liquidity() {
     new_test_ext().execute_with(|| {
         // `min_liquidity` is ignored if existing liquidity is 0, so we need to add some first.
-        Dex::add_liquidity(
-            Origin::signed(ACCOUNT_A),
-            ASSET_A,
-            1_000u64,
-            1_000u64,
-            1_000u64,
-        )
-        .unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
         assert_noop!(
-            Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000u64, 0u64, 1_001u64,),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 0, 1_001,),
             Error::<Test>::MinLiquidityIsZero
         );
     })
@@ -241,22 +202,9 @@ fn add_liquidity_zero_min_liquidity() {
 fn add_liquidity_max_tokens_too_low() {
     new_test_ext().execute_with(|| {
         // `max_tokens` is always enough if existing liquidity is 0, so we need to add some first.
-        Dex::add_liquidity(
-            Origin::signed(ACCOUNT_A),
-            ASSET_A,
-            1_000u64,
-            1_000u64,
-            1_000u64,
-        )
-        .unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
         assert_noop!(
-            Dex::add_liquidity(
-                Origin::signed(ACCOUNT_B),
-                ASSET_A,
-                1_000u64,
-                1_000u64,
-                10u64,
-            ),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 1_000, 10,),
             Error::<Test>::MaxTokensTooLow
         );
     })
@@ -266,22 +214,9 @@ fn add_liquidity_max_tokens_too_low() {
 fn add_liquidity_min_liquidity_too_high() {
     new_test_ext().execute_with(|| {
         // `min_liquidity` is ignored if existing liquidity is 0, so we need to add some first.
-        Dex::add_liquidity(
-            Origin::signed(ACCOUNT_A),
-            ASSET_A,
-            1_000u64,
-            1_000u64,
-            1_000u64,
-        )
-        .unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
         assert_noop!(
-            Dex::add_liquidity(
-                Origin::signed(ACCOUNT_B),
-                ASSET_A,
-                1_000u64,
-                10_000u64,
-                1_001u64,
-            ),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 10_000, 1_001,),
             Error::<Test>::MinLiquidityTooHigh
         );
     })
