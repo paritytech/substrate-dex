@@ -37,9 +37,8 @@ type BalanceOf<T> = <T as Config>::Balance;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use frame_benchmarking::BenchmarkParameter::c;
     use frame_support::pallet_prelude::*;
-    use frame_support::sp_runtime::traits::StaticLookup;
+    use frame_support::sp_runtime::traits::{StaticLookup, Zero};
     use frame_support::traits::tokens::Balance;
     use frame_support::BoundedBTreeMap;
     use frame_system::pallet_prelude::*;
@@ -85,6 +84,14 @@ pub mod pallet {
             BalanceOf<T>,
             BalanceOf<T>,
         ),
+        /// Liquidity was removed from an exchange [provider_id, asset_id, currency_amount, token_amount, liquidity_amount]
+        LiquidityRemoved(
+            T::AccountId,
+            T::AssetId,
+            BalanceOf<T>,
+            BalanceOf<T>,
+            BalanceOf<T>,
+        ),
     }
 
     #[pallet::error]
@@ -111,6 +118,22 @@ pub mod pallet {
         MinLiquidityTooHigh,
         /// Maximum number of liquidity providers for the exchange reached
         MaxProvidersReached,
+        /// Zero value provided for `liquidity_amount` parameter
+        LiquidityAmountIsZero,
+        /// Zero value provided for `min_currency` parameter
+        MinCurrencyIsZero,
+        /// Zero value provided for `min_tokens` parameter
+        MinTokensIsZero,
+        /// There's not enough total liquidity in the exchange
+        TotalLiquidityTooLow,
+        /// Specified account doesn't own enough liquidity in the exchange
+        ProviderLiquidityTooLow,
+        /// Specified account doesn't provide any liquidity in the exchange
+        NotAProvider,
+        /// Withdrawn liquidity is not sufficient for specified `min_currency`
+        MinCurrencyTooHigh,
+        /// Withdrawn liquidity is not sufficient for specified `min_tokens`
+        MinTokensTooHigh,
     }
 
     #[derive(
@@ -236,12 +259,82 @@ pub mod pallet {
             *caller_liquidity += liquidity_minted;
             <Exchanges<T>>::insert(asset_id, exchange);
 
+            // ---------------------------- Emit event -----------------------------
             Self::deposit_event(Event::LiquidityAdded(
                 caller,
                 asset_id,
                 currency_amount,
                 token_amount,
                 liquidity_minted,
+            ));
+            Ok(())
+        }
+
+        /// Remove liquidity from an exchange.
+        ///
+        /// The dispatch origin for this call must be _Signed_.
+        #[pallet::weight(1000)]
+        pub fn remove_liquidity(
+            origin: OriginFor<T>,
+            asset_id: T::AssetId,
+            liquidity_amount: BalanceOf<T>,
+            min_currency: BalanceOf<T>,
+            min_tokens: BalanceOf<T>,
+        ) -> DispatchResult {
+            // -------------------------- Validation part --------------------------
+            let caller = ensure_signed(origin)?;
+            ensure!(
+                liquidity_amount > 0u32.into(),
+                Error::<T>::LiquidityAmountIsZero
+            );
+            ensure!(min_currency > 0u32.into(), Error::<T>::MinCurrencyIsZero);
+            ensure!(min_tokens > 0u32.into(), Error::<T>::MinTokensIsZero);
+            let mut exchange = match <Exchanges<T>>::get(asset_id) {
+                Some(exchange) => exchange,
+                None => Err(Error::<T>::ExchangeNotFound)?,
+            };
+            ensure!(
+                exchange.total_liquidity >= liquidity_amount,
+                Error::<T>::TotalLiquidityTooLow
+            );
+            let caller_liquidity = exchange
+                .balances
+                .get_mut(&caller)
+                .ok_or(Error::<T>::NotAProvider)?;
+            ensure!(
+                *caller_liquidity >= liquidity_amount,
+                Error::<T>::ProviderLiquidityTooLow
+            );
+
+            // --------------- Withdrawn currency/tokens computation ---------------
+            let currency_amount =
+                liquidity_amount * exchange.currency_reserve / exchange.total_liquidity;
+            let token_amount = liquidity_amount * exchange.token_reserve / exchange.total_liquidity;
+            ensure!(
+                currency_amount >= min_currency,
+                Error::<T>::MinCurrencyTooHigh
+            );
+            ensure!(token_amount >= min_tokens, Error::<T>::MinTokensTooHigh);
+
+            // --------------------- Currency & token transfer ---------------------
+            // TODO: Derive account from pallet and make transfers
+
+            // -------------------------- Balances update --------------------------
+            exchange.currency_reserve -= currency_amount;
+            exchange.token_reserve -= token_amount;
+            exchange.total_liquidity -= liquidity_amount;
+            *caller_liquidity -= liquidity_amount;
+            if caller_liquidity.is_zero() {
+                exchange.balances.remove(&caller);
+            }
+
+            // ---------------------------- Emit event -----------------------------
+            Self::deposit_event(Event::LiquidityRemoved(
+                caller,
+                asset_id,
+                currency_amount,
+                token_amount,
+                liquidity_amount,
             ));
             Ok(())
         }
