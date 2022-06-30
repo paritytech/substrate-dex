@@ -91,6 +91,8 @@ pub mod pallet {
     pub enum Error<T> {
         /// Asset with the specified ID does not exist
         AssetNotFound,
+        /// Exchange for the given asset already exists
+        ExchangeAlreadyExists,
         /// Not enough free balance to add liquidity
         BalanceTooLow,
         /// Not enough tokens to add liquidity
@@ -145,6 +147,9 @@ pub mod pallet {
 
             if <pallet_assets::Pallet<T>>::maybe_total_supply(asset_id).is_none() {
                 Err(Error::<T>::AssetNotFound)?
+            }
+            if <Exchanges<T>>::contains_key(asset_id) {
+                Err(Error::<T>::ExchangeAlreadyExists)?
             }
 
             <Exchanges<T>>::insert(
@@ -218,7 +223,7 @@ pub mod pallet {
                 );
                 (token_amount, liquidity_minted)
             } else {
-                (currency_amount, min_liquidity)
+                (max_tokens, currency_amount)
             };
 
             // --------------------- Currency & token transfer ---------------------
@@ -229,6 +234,7 @@ pub mod pallet {
             exchange.token_reserve += token_amount;
             exchange.total_liquidity += liquidity_minted;
             *caller_liquidity += liquidity_minted;
+            <Exchanges<T>>::insert(asset_id, exchange);
 
             Self::deposit_event(Event::LiquidityAdded(
                 caller,

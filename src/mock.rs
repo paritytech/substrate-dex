@@ -87,31 +87,42 @@ impl dex::Config for Test {
 
 pub(crate) const ACCOUNT_A: u64 = 0;
 pub(crate) const ACCOUNT_B: u64 = 1;
+pub(crate) const ACCOUNT_C: u64 = 2;
 pub(crate) const INIT_BALANCE: u64 = 1_000_000;
-pub(crate) const ASSET_ID: u32 = 100;
-pub(crate) const MAX_PROVIDERS: u32 = 10;
+pub(crate) const ASSET_A: u32 = 100;
+pub(crate) const ASSET_B: u32 = 101;
+pub(crate) const MAX_PROVIDERS: u32 = 2;
 
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
     let mut storage = frame_system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
     pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(ACCOUNT_A, INIT_BALANCE), (ACCOUNT_B, INIT_BALANCE)],
+        balances: vec![
+            (ACCOUNT_A, INIT_BALANCE),
+            (ACCOUNT_B, INIT_BALANCE),
+            (ACCOUNT_C, INIT_BALANCE),
+        ],
     }
     .assimilate_storage(&mut storage)
     .unwrap();
     pallet_assets::GenesisConfig::<Test> {
-        assets: vec![(ASSET_ID, ACCOUNT_A, true, 1)],
+        assets: vec![(ASSET_A, ACCOUNT_A, true, 1), (ASSET_B, ACCOUNT_B, true, 1)],
         metadata: vec![],
         accounts: vec![
-            (ASSET_ID, ACCOUNT_A, INIT_BALANCE),
-            (ASSET_ID, ACCOUNT_B, INIT_BALANCE),
+            (ASSET_A, ACCOUNT_A, INIT_BALANCE),
+            (ASSET_A, ACCOUNT_B, INIT_BALANCE),
+            (ASSET_A, ACCOUNT_C, INIT_BALANCE),
+            (ASSET_B, ACCOUNT_A, INIT_BALANCE),
+            (ASSET_B, ACCOUNT_B, INIT_BALANCE),
+            (ASSET_B, ACCOUNT_C, INIT_BALANCE),
         ],
     }
     .assimilate_storage(&mut storage)
     .unwrap();
     let mut test_ext: sp_io::TestExternalities = storage.into();
     test_ext.execute_with(|| System::set_block_number(1));
+    test_ext.execute_with(|| Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_A).unwrap());
     test_ext
 }
 
