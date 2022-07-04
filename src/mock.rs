@@ -1,5 +1,6 @@
 use crate as dex;
 use frame_support::traits::{ConstU16, ConstU32, ConstU64, Everything, GenesisBuild};
+use frame_support::{parameter_types, PalletId};
 use frame_system::EnsureRoot;
 use sp_core::H256;
 use sp_runtime::testing::Header;
@@ -77,7 +78,12 @@ impl pallet_assets::Config for Test {
     type WeightInfo = ();
 }
 
+parameter_types! {
+    pub const DexPalletId: PalletId = PalletId(*b"dex_mock");
+}
+
 impl dex::Config for Test {
+    type PalletId = DexPalletId;
     type Event = Event;
     type Currency = Balances;
     type Balance = u64;
