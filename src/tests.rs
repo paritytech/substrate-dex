@@ -1,5 +1,7 @@
 use crate::mock::*;
+use crate::pallet::Config as DexConfig;
 use crate::{Error, Exchange};
+use frame_support::sp_runtime::traits::AccountIdConversion;
 use frame_support::{assert_noop, assert_ok, BoundedBTreeMap};
 
 #[test]
@@ -60,12 +62,22 @@ fn add_liquidity() {
             0, // `min_liquidity` is ignored if there's no liquidity yet
             1_000,
         ));
+
         let exchange = Dex::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.total_liquidity, 1_000);
         assert_eq!(exchange.currency_reserve, 1_000);
         assert_eq!(exchange.token_reserve, 1_000);
-        let balance = exchange.balances.get(&ACCOUNT_A).unwrap();
-        assert_eq!(balance, &1_000);
+        assert_eq!(exchange.balances.get(&ACCOUNT_A).unwrap(), &1_000);
+
+        assert_eq!(Balances::free_balance(ACCOUNT_A), INIT_BALANCE - 1_000);
+        assert_eq!(
+            Assets::maybe_balance(ASSET_A, &ACCOUNT_A),
+            Some(INIT_BALANCE - 1_000)
+        );
+        let pallet_account = <Test as DexConfig>::PalletId::get().into_account_truncating();
+        assert_eq!(Balances::free_balance(pallet_account), 1_000);
+        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(1_000));
+
         assert_eq!(
             last_event(),
             crate::Event::LiquidityAdded(ACCOUNT_A, ASSET_A, 1_000, 1_000, 1_000)
@@ -78,12 +90,21 @@ fn add_liquidity() {
             500,
             1_000,
         ));
+
         let exchange = Dex::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.total_liquidity, 1_500);
         assert_eq!(exchange.currency_reserve, 1_500);
         assert_eq!(exchange.token_reserve, 1_501);
-        let balance = exchange.balances.get(&ACCOUNT_B).unwrap();
-        assert_eq!(balance, &500);
+        assert_eq!(exchange.balances.get(&ACCOUNT_B).unwrap(), &500);
+
+        assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - 500);
+        assert_eq!(
+            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
+            Some(INIT_BALANCE - 501)
+        );
+        assert_eq!(Balances::free_balance(pallet_account), 1_500);
+        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(1_501));
+
         assert_eq!(
             last_event(),
             crate::Event::LiquidityAdded(ACCOUNT_B, ASSET_A, 500, 501, 500)
