@@ -33,25 +33,29 @@ pub use weights::WeightInfo;
 
 type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 type BalanceOf<T> = <T as Config>::Balance;
+type AssetIdOf<T> = <T as Config>::AssetId;
 
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use codec::EncodeLike;
     use frame_support::pallet_prelude::*;
     use frame_support::sp_runtime::traits::{
         AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, StaticLookup, Zero,
     };
-    use frame_support::traits::tokens::Balance;
+    use frame_support::traits::fungibles::{Inspect, Mutate, Transfer};
+    use frame_support::traits::tokens::{Balance, WithdrawConsequence};
     use frame_support::traits::{ExistenceRequirement, OriginTrait, WithdrawReasons};
     use frame_support::{BoundedBTreeMap, PalletId};
     use frame_system::pallet_prelude::*;
+    use std::fmt::Debug;
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + pallet_assets::Config {
+    pub trait Config: frame_system::Config {
         /// Pallet ID.
         #[pallet::constant]
         type PalletId: Get<PalletId>;
@@ -60,14 +64,28 @@ pub mod pallet {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         /// The currency trait.
-        type Currency: Currency<Self::AccountId> + IsType<<Self as pallet_assets::Config>::Currency>;
+        type Currency: Currency<Self::AccountId>;
 
         // FIXME: Remove this and allow different types for currency and assets
         /// Single balance type for base currency and assets.
         type Balance: IsType<<<Self as Config>::Currency as Currency<AccountIdOf<Self>>>::Balance>
-            + IsType<<Self as pallet_assets::Config>::Balance>
             + Balance
             + MaxEncodedLen;
+
+        /// The asset ID type.
+        type AssetId: MaybeSerializeDeserialize
+            + MaxEncodedLen
+            + TypeInfo
+            + Clone
+            + Debug
+            + PartialEq
+            + EncodeLike
+            + Decode;
+
+        /// The fungible assets trait.
+        type Assets: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
+            + Transfer<Self::AccountId>
+            + Mutate<Self::AccountId>;
 
         /// Maximum number of liquidity providers per exchange.
         #[pallet::constant]
@@ -81,11 +99,11 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// A new exchange was created [asset_id]
-        ExchangeCreated(T::AssetId),
+        ExchangeCreated(AssetIdOf<T>),
         /// Liquidity was added to an exchange [provider_id, asset_id, currency_amount, token_amount, liquidity_minted]
         LiquidityAdded(
             T::AccountId,
-            T::AssetId,
+            AssetIdOf<T>,
             BalanceOf<T>,
             BalanceOf<T>,
             BalanceOf<T>,
@@ -93,7 +111,7 @@ pub mod pallet {
         /// Liquidity was removed from an exchange [provider_id, asset_id, currency_amount, token_amount, liquidity_amount]
         LiquidityRemoved(
             T::AccountId,
-            T::AssetId,
+            AssetIdOf<T>,
             BalanceOf<T>,
             BalanceOf<T>,
             BalanceOf<T>,
@@ -140,8 +158,10 @@ pub mod pallet {
         MinCurrencyTooHigh,
         /// Withdrawn liquidity is not sufficient for specified `min_tokens`
         MinTokensTooHigh,
-        /// Overflow occurred when computing liquidity
+        /// Overflow occurred
         Overflow,
+        /// Underflow occurred
+        Underflow,
     }
 
     #[derive(
@@ -158,13 +178,12 @@ pub mod pallet {
     // Type aliases for convenience
     type BalanceMap<T> =
         BoundedBTreeMap<AccountIdOf<T>, BalanceOf<T>, <T as Config>::MaxExchangeProviders>;
-    type ExchangeOf<T> =
-        Exchange<<T as pallet_assets::Config>::AssetId, BalanceOf<T>, BalanceMap<T>>;
+    type ExchangeOf<T> = Exchange<AssetIdOf<T>, BalanceOf<T>, BalanceMap<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn exchanges)]
     pub(super) type Exchanges<T: Config> =
-        StorageMap<_, Twox64Concat, T::AssetId, ExchangeOf<T>, OptionQuery>;
+        StorageMap<_, Twox64Concat, AssetIdOf<T>, ExchangeOf<T>, OptionQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -172,21 +191,21 @@ pub mod pallet {
         ///
         /// The dispatch origin for this call must be _Signed_.
         #[pallet::weight(1000)]
-        pub fn create_exchange(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+        pub fn create_exchange(origin: OriginFor<T>, asset_id: AssetIdOf<T>) -> DispatchResult {
             let caller = ensure_signed(origin)?;
             // TODO: Fee/deposit for exchange creation (?)
 
-            if <pallet_assets::Pallet<T>>::maybe_total_supply(asset_id).is_none() {
+            if T::Assets::total_issuance(asset_id.clone()).is_zero() {
                 Err(Error::<T>::AssetNotFound)?
             }
-            if <Exchanges<T>>::contains_key(asset_id) {
+            if <Exchanges<T>>::contains_key(asset_id.clone()) {
                 Err(Error::<T>::ExchangeAlreadyExists)?
             }
 
             <Exchanges<T>>::insert(
-                asset_id,
+                asset_id.clone(),
                 Exchange {
-                    asset_id,
+                    asset_id: asset_id.clone(),
                     total_liquidity: <BalanceOf<T>>::default(),
                     currency_reserve: <BalanceOf<T>>::default(),
                     token_reserve: <BalanceOf<T>>::default(),
@@ -204,13 +223,13 @@ pub mod pallet {
         #[pallet::weight(1000)]
         pub fn add_liquidity(
             origin: OriginFor<T>,
-            asset_id: T::AssetId,
+            asset_id: AssetIdOf<T>,
             currency_amount: BalanceOf<T>,
             min_liquidity: BalanceOf<T>,
             max_tokens: BalanceOf<T>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
-            let caller = ensure_signed(origin.clone())?;
+            let caller = ensure_signed(origin)?;
             ensure!(
                 currency_amount > Zero::zero(),
                 Error::<T>::CurrencyAmountIsZero
@@ -220,11 +239,17 @@ pub mod pallet {
                 <T as Config>::Currency::free_balance(&caller) >= currency_amount.into(),
                 Error::<T>::BalanceTooLow
             );
-            match <pallet_assets::Pallet<T>>::maybe_balance(asset_id, &caller) {
-                None => Err(Error::<T>::AssetNotFound)?,
-                Some(balance) => ensure!(balance >= max_tokens.into(), Error::<T>::NotEnoughTokens),
-            }
-            let mut exchange = match <Exchanges<T>>::get(asset_id) {
+            match T::Assets::can_withdraw(asset_id.clone(), &caller, max_tokens) {
+                WithdrawConsequence::NoFunds => Err(Error::<T>::NotEnoughTokens)?,
+                WithdrawConsequence::WouldDie => Err(Error::<T>::NotEnoughTokens)?,
+                WithdrawConsequence::UnknownAsset => Err(Error::<T>::AssetNotFound)?,
+                WithdrawConsequence::Underflow => Err(Error::<T>::Underflow)?,
+                WithdrawConsequence::Overflow => Err(Error::<T>::Overflow)?,
+                WithdrawConsequence::Frozen => Err(Error::<T>::NotEnoughTokens)?,
+                WithdrawConsequence::ReducedToZero(_) => Err(Error::<T>::NotEnoughTokens)?,
+                WithdrawConsequence::Success => (),
+            };
+            let mut exchange = match <Exchanges<T>>::get(asset_id.clone()) {
                 Some(exchange) => exchange,
                 None => Err(Error::<T>::ExchangeNotFound)?,
             };
@@ -272,11 +297,12 @@ pub mod pallet {
                 currency_amount.into(),
                 ExistenceRequirement::KeepAlive,
             )?;
-            <pallet_assets::Pallet<T>>::transfer(
-                origin,
-                asset_id,
-                <T as frame_system::Config>::Lookup::unlookup(pallet_account),
-                token_amount.into(),
+            T::Assets::transfer(
+                asset_id.clone(),
+                &caller,
+                &pallet_account,
+                token_amount,
+                true,
             )?;
 
             // -------------------------- Balances update --------------------------
@@ -295,7 +321,7 @@ pub mod pallet {
             *caller_liquidity = caller_liquidity
                 .checked_add(&liquidity_minted)
                 .ok_or(Error::<T>::Overflow)?;
-            <Exchanges<T>>::insert(asset_id, exchange);
+            <Exchanges<T>>::insert(asset_id.clone(), exchange);
 
             // ---------------------------- Emit event -----------------------------
             Self::deposit_event(Event::LiquidityAdded(
@@ -314,7 +340,7 @@ pub mod pallet {
         #[pallet::weight(1000)]
         pub fn remove_liquidity(
             origin: OriginFor<T>,
-            asset_id: T::AssetId,
+            asset_id: AssetIdOf<T>,
             liquidity_amount: BalanceOf<T>,
             min_currency: BalanceOf<T>,
             min_tokens: BalanceOf<T>,
@@ -327,7 +353,7 @@ pub mod pallet {
             );
             ensure!(min_currency > Zero::zero(), Error::<T>::MinCurrencyIsZero);
             ensure!(min_tokens > Zero::zero(), Error::<T>::MinTokensIsZero);
-            let mut exchange = match <Exchanges<T>>::get(asset_id) {
+            let mut exchange = match <Exchanges<T>>::get(asset_id.clone()) {
                 Some(exchange) => exchange,
                 None => Err(Error::<T>::ExchangeNotFound)?,
             };
@@ -369,11 +395,12 @@ pub mod pallet {
                 currency_amount.into(),
                 ExistenceRequirement::AllowDeath,
             )?;
-            <pallet_assets::Pallet<T>>::transfer(
-                <T as frame_system::Config>::Origin::root(),
-                asset_id,
-                <T as frame_system::Config>::Lookup::unlookup(caller.clone()),
-                token_amount.into(),
+            T::Assets::transfer(
+                asset_id.clone(),
+                &pallet_account,
+                &caller,
+                token_amount,
+                false,
             )?;
 
             // -------------------------- Balances update --------------------------
