@@ -4,7 +4,7 @@ use frame_support::{parameter_types, PalletId};
 use frame_system::EnsureRoot;
 use sp_core::H256;
 use sp_runtime::testing::Header;
-use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
+use sp_runtime::traits::{BlakeTwo256, Identity, IdentityLookup};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -86,7 +86,9 @@ impl dex::Config for Test {
     type PalletId = DexPalletId;
     type Event = Event;
     type Currency = Balances;
-    type Balance = u64;
+    type AssetBalance = u64;
+    type AssetToCurrencyBalance = Identity;
+    type CurrencyToAssetBalance = Identity;
     type AssetId = u32;
     type Assets = Assets;
     type MaxExchangeProviders = ConstU32<MAX_PROVIDERS>;
