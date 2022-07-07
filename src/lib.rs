@@ -42,12 +42,11 @@ pub mod pallet {
     use codec::EncodeLike;
     use frame_support::pallet_prelude::*;
     use frame_support::sp_runtime::traits::{
-        AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Convert, StaticLookup,
-        Zero,
+        AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Convert, One, Zero,
     };
-    use frame_support::traits::fungibles::{Inspect, Mutate, Transfer};
+    use frame_support::traits::fungibles::{Create, Destroy, Inspect, Mutate, Transfer};
     use frame_support::traits::tokens::{Balance, WithdrawConsequence};
-    use frame_support::traits::{ExistenceRequirement, OriginTrait, WithdrawReasons};
+    use frame_support::traits::{ExistenceRequirement, OriginTrait, Randomness, WithdrawReasons};
     use frame_support::{BoundedBTreeMap, PalletId};
     use frame_system::pallet_prelude::*;
     use std::fmt::Debug;
@@ -88,11 +87,12 @@ pub mod pallet {
         /// The fungible assets trait.
         type Assets: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>
             + Transfer<Self::AccountId>
-            + Mutate<Self::AccountId>;
+            + Mutate<Self::AccountId>
+            + Create<Self::AccountId>
+            + Destroy<Self::AccountId>;
 
-        /// Maximum number of liquidity providers per exchange.
-        #[pallet::constant]
-        type MaxExchangeProviders: Get<u32>;
+        /// Randomness for liquidity token ID generation.
+        type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
 
         /// Information on runtime weights.
         type WeightInfo: WeightInfo;
@@ -101,8 +101,8 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// A new exchange was created [asset_id]
-        ExchangeCreated(AssetIdOf<T>),
+        /// A new exchange was created [asset_id, liquidity_token_id]
+        ExchangeCreated(AssetIdOf<T>, AssetIdOf<T>),
         /// Liquidity was added to an exchange [provider_id, asset_id, currency_amount, token_amount, liquidity_minted]
         LiquidityAdded(
             T::AccountId,
@@ -143,20 +143,14 @@ pub mod pallet {
         MaxTokensTooLow,
         /// Specified `min_liquidity` is too high to match `currency_amount`
         MinLiquidityTooHigh,
-        /// Maximum number of liquidity providers for the exchange reached
-        MaxProvidersReached,
         /// Zero value provided for `liquidity_amount` parameter
         LiquidityAmountIsZero,
         /// Zero value provided for `min_currency` parameter
         MinCurrencyIsZero,
         /// Zero value provided for `min_tokens` parameter
         MinTokensIsZero,
-        /// There's not enough total liquidity in the exchange
-        TotalLiquidityTooLow,
         /// Specified account doesn't own enough liquidity in the exchange
         ProviderLiquidityTooLow,
-        /// Specified account doesn't provide any liquidity in the exchange
-        NotAProvider,
         /// Withdrawn liquidity is not sufficient for specified `min_currency`
         MinCurrencyTooHigh,
         /// Withdrawn liquidity is not sufficient for specified `min_tokens`
@@ -170,18 +164,15 @@ pub mod pallet {
     #[derive(
         Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, Default, MaxEncodedLen, TypeInfo,
     )]
-    pub struct Exchange<AssetId, Balance, AssetBalance, BalanceMap> {
+    pub struct Exchange<AssetId, Balance, AssetBalance> {
         pub asset_id: AssetId,
-        pub total_liquidity: AssetBalance,
         pub currency_reserve: Balance,
         pub token_reserve: AssetBalance,
-        pub balances: BalanceMap,
+        pub liquidity_token_id: AssetId,
     }
 
-    // Type aliases for convenience
-    type BalanceMap<T> =
-        BoundedBTreeMap<AccountIdOf<T>, AssetBalanceOf<T>, <T as Config>::MaxExchangeProviders>;
-    type ExchangeOf<T> = Exchange<AssetIdOf<T>, BalanceOf<T>, AssetBalanceOf<T>, BalanceMap<T>>;
+    // Type alias for convenience
+    type ExchangeOf<T> = Exchange<AssetIdOf<T>, BalanceOf<T>, AssetBalanceOf<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn exchanges)]
@@ -195,6 +186,7 @@ pub mod pallet {
         /// The dispatch origin for this call must be _Signed_.
         #[pallet::weight(1000)]
         pub fn create_exchange(origin: OriginFor<T>, asset_id: AssetIdOf<T>) -> DispatchResult {
+            // -------------------------- Validation part --------------------------
             let caller = ensure_signed(origin)?;
             // TODO: Fee/deposit for exchange creation (?)
 
@@ -205,18 +197,31 @@ pub mod pallet {
                 Err(Error::<T>::ExchangeAlreadyExists)?
             }
 
+            // ----------------------- Create liquidity token ----------------------
+            let random_hash = T::Randomness::random("liquidity_token_id".as_bytes()).0;
+            let liquidity_token_id = <AssetIdOf<T>>::decode(&mut random_hash.as_ref())
+                .expect("asset ID shouldn't have more bytes than hash");
+            let pallet_account = T::PalletId::get().into_account_truncating();
+            T::Assets::create(
+                liquidity_token_id.clone(),
+                pallet_account,
+                false,
+                <AssetBalanceOf<T>>::one(),
+            )?;
+
+            // -------------------------- Update storage ---------------------------
             <Exchanges<T>>::insert(
                 asset_id.clone(),
                 Exchange {
                     asset_id: asset_id.clone(),
-                    total_liquidity: <AssetBalanceOf<T>>::default(),
-                    currency_reserve: <BalanceOf<T>>::default(),
-                    token_reserve: <AssetBalanceOf<T>>::default(),
-                    balances: BoundedBTreeMap::new(),
+                    currency_reserve: <BalanceOf<T>>::zero(),
+                    token_reserve: <AssetBalanceOf<T>>::zero(),
+                    liquidity_token_id: liquidity_token_id.clone(),
                 },
             );
 
-            Self::deposit_event(Event::ExchangeCreated(asset_id));
+            // ---------------------------- Emit event -----------------------------
+            Self::deposit_event(Event::ExchangeCreated(asset_id, liquidity_token_id));
             Ok(())
         }
 
@@ -256,19 +261,10 @@ pub mod pallet {
                 Some(exchange) => exchange,
                 None => Err(Error::<T>::ExchangeNotFound)?,
             };
-            let caller_liquidity = match exchange.balances.get_mut(&caller) {
-                Some(balance) => balance,
-                None => {
-                    exchange
-                        .balances
-                        .try_insert(caller.clone(), Zero::zero())
-                        .map_err(|_| Error::<T>::MaxProvidersReached)?;
-                    exchange.balances.get_mut(&caller).unwrap()
-                }
-            };
 
             // -------------------- Token/liquidity computation --------------------
-            let (token_amount, liquidity_minted) = if exchange.total_liquidity > Zero::zero() {
+            let total_liquidity = T::Assets::total_issuance(exchange.liquidity_token_id.clone());
+            let (token_amount, liquidity_minted) = if total_liquidity > Zero::zero() {
                 ensure!(min_liquidity > Zero::zero(), Error::<T>::MinLiquidityIsZero);
                 let currency_amount = T::CurrencyToAssetBalance::convert(currency_amount);
                 let currency_reserve =
@@ -281,7 +277,7 @@ pub mod pallet {
                     .checked_add(&1u32.into())
                     .ok_or(Error::<T>::Overflow)?;
                 let liquidity_minted = currency_amount
-                    .checked_mul(&exchange.total_liquidity)
+                    .checked_mul(&total_liquidity)
                     .ok_or(Error::<T>::Overflow)?
                     .checked_div(&currency_reserve)
                     .expect("currency_reserve should never be 0 if total_liquidity > 0");
@@ -313,6 +309,11 @@ pub mod pallet {
                 token_amount,
                 true,
             )?;
+            T::Assets::mint_into(
+                exchange.liquidity_token_id.clone(),
+                &caller,
+                liquidity_minted,
+            )?;
 
             // -------------------------- Balances update --------------------------
             exchange.currency_reserve = exchange
@@ -322,13 +323,6 @@ pub mod pallet {
             exchange.token_reserve = exchange
                 .token_reserve
                 .checked_add(&token_amount)
-                .ok_or(Error::<T>::Overflow)?;
-            exchange.total_liquidity = exchange
-                .total_liquidity
-                .checked_add(&liquidity_minted)
-                .ok_or(Error::<T>::Overflow)?;
-            *caller_liquidity = caller_liquidity
-                .checked_add(&liquidity_minted)
                 .ok_or(Error::<T>::Overflow)?;
             <Exchanges<T>>::insert(asset_id.clone(), exchange);
 
@@ -366,31 +360,34 @@ pub mod pallet {
                 Some(exchange) => exchange,
                 None => Err(Error::<T>::ExchangeNotFound)?,
             };
-            ensure!(
-                exchange.total_liquidity >= liquidity_amount,
-                Error::<T>::TotalLiquidityTooLow
-            );
-            let caller_liquidity = exchange
-                .balances
-                .get_mut(&caller)
-                .ok_or(Error::<T>::NotAProvider)?;
-            ensure!(
-                *caller_liquidity >= liquidity_amount,
-                Error::<T>::ProviderLiquidityTooLow
-            );
+            match T::Assets::can_withdraw(
+                exchange.liquidity_token_id.clone(),
+                &caller,
+                liquidity_amount,
+            ) {
+                WithdrawConsequence::NoFunds => Err(Error::<T>::ProviderLiquidityTooLow)?,
+                WithdrawConsequence::WouldDie => Err(Error::<T>::ProviderLiquidityTooLow)?,
+                WithdrawConsequence::UnknownAsset => Err(Error::<T>::AssetNotFound)?,
+                WithdrawConsequence::Underflow => Err(Error::<T>::Underflow)?,
+                WithdrawConsequence::Overflow => Err(Error::<T>::Overflow)?,
+                WithdrawConsequence::Frozen => Err(Error::<T>::ProviderLiquidityTooLow)?,
+                WithdrawConsequence::ReducedToZero(_) => Err(Error::<T>::ProviderLiquidityTooLow)?,
+                WithdrawConsequence::Success => (),
+            };
 
             // --------------- Withdrawn currency/tokens computation ---------------
             let currency_reserve = T::CurrencyToAssetBalance::convert(exchange.currency_reserve);
+            let total_liquidity = T::Assets::total_issuance(exchange.liquidity_token_id.clone());
             let currency_amount = liquidity_amount
                 .checked_mul(&currency_reserve)
                 .ok_or(Error::<T>::Overflow)?
-                .checked_div(&exchange.total_liquidity)
+                .checked_div(&total_liquidity)
                 .expect("total_liquidity > 0 is checked earlier");
             let currency_amount = T::AssetToCurrencyBalance::convert(currency_amount);
             let token_amount = liquidity_amount
                 .checked_mul(&exchange.token_reserve)
                 .ok_or(Error::<T>::Overflow)?
-                .checked_div(&exchange.total_liquidity)
+                .checked_div(&total_liquidity)
                 .expect("total_liquidity > 0 is checked earlier");
             ensure!(
                 currency_amount >= min_currency,
@@ -399,6 +396,7 @@ pub mod pallet {
             ensure!(token_amount >= min_tokens, Error::<T>::MinTokensTooHigh);
 
             // --------------------- Currency & token transfer ---------------------
+            T::Assets::burn_from(exchange.liquidity_token_id, &caller, liquidity_amount)?;
             let pallet_account = T::PalletId::get().into_account_truncating();
             <T as pallet::Config>::Currency::transfer(
                 &pallet_account,
@@ -423,17 +421,6 @@ pub mod pallet {
                 .token_reserve
                 .checked_sub(&token_amount)
                 .ok_or(Error::<T>::Overflow)?;
-            exchange.total_liquidity = exchange
-                .total_liquidity
-                .checked_sub(&liquidity_amount)
-                .ok_or(Error::<T>::Overflow)?;
-            *caller_liquidity = caller_liquidity
-                .checked_sub(&liquidity_amount)
-                .ok_or(Error::<T>::Overflow)?;
-
-            if caller_liquidity.is_zero() {
-                exchange.balances.remove(&caller);
-            }
 
             // ---------------------------- Emit event -----------------------------
             Self::deposit_event(Event::LiquidityRemoved(

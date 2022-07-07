@@ -29,6 +29,9 @@ sp-runtime = { default-features = false, version = "6.0.0", git = "https://githu
 
 pallet-balances = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.24" }
 
+lazy_static = "1.4"
+rand = "0.8.5"
+
 [features]
 default = ["std"]
 std = [
