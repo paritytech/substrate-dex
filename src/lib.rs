@@ -131,6 +131,14 @@ pub mod pallet {
             AssetBalanceOf<T>,
             AssetBalanceOf<T>,
         ),
+        /// Asset was bought (for currency) [asset_id, buyer_id, recipient_id, currency_amount, token_amount]
+        CurrencyTradedForAsset(
+            AssetIdOf<T>,
+            T::AccountId,
+            T::AccountId,
+            BalanceOf<T>,
+            AssetBalanceOf<T>,
+        ),
     }
 
     #[pallet::error]
@@ -147,6 +155,8 @@ pub mod pallet {
         MaxTokensIsZero,
         /// Zero value provided for `currency_amount` parameter
         CurrencyAmountIsZero,
+        /// Value provided for `currency_amount` parameter is too high
+        CurrencyAmountTooHigh,
         /// Zero value provided for `min_liquidity` parameter
         MinLiquidityIsZero,
         /// No exchange found for the given `asset_id`
@@ -319,14 +329,8 @@ pub mod pallet {
             )?;
 
             // -------------------------- Balances update --------------------------
-            exchange.currency_reserve = exchange
-                .currency_reserve
-                .checked_add(&currency_amount)
-                .ok_or(Error::<T>::Overflow)?;
-            exchange.token_reserve = exchange
-                .token_reserve
-                .checked_add(&token_amount)
-                .ok_or(Error::<T>::Overflow)?;
+            exchange.currency_reserve.saturating_accrue(currency_amount);
+            exchange.token_reserve.saturating_accrue(token_amount);
             <Exchanges<T>>::insert(asset_id.clone(), exchange);
 
             // ---------------------------- Emit event -----------------------------
@@ -410,14 +414,8 @@ pub mod pallet {
             )?;
 
             // -------------------------- Balances update --------------------------
-            exchange.currency_reserve = exchange
-                .currency_reserve
-                .checked_sub(&currency_amount)
-                .ok_or(Error::<T>::Overflow)?;
-            exchange.token_reserve = exchange
-                .token_reserve
-                .checked_sub(&token_amount)
-                .ok_or(Error::<T>::Overflow)?;
+            exchange.currency_reserve.saturating_reduce(currency_amount);
+            exchange.token_reserve.saturating_reduce(token_amount);
             <Exchanges<T>>::insert(asset_id.clone(), exchange);
 
             // ---------------------------- Emit event -----------------------------
@@ -491,6 +489,72 @@ pub mod pallet {
                 .checked_mul(&net_amount_numerator)
                 .ok_or(Error::Overflow)?;
             Ok((numerator / denominator).saturating_add(<BalanceOf<T>>::one()))
+        }
+
+        fn currency_to_token_input(
+            asset_id: &AssetIdOf<T>,
+            currency_amount: BalanceOf<T>,
+            min_tokens: AssetBalanceOf<T>,
+            deadline: T::BlockNumber,
+            buyer: AccountIdOf<T>,
+            recipient: AccountIdOf<T>,
+        ) -> DispatchResult {
+            // -------------------------- Validation part --------------------------
+            Self::check_deadline(&deadline)?;
+            ensure!(
+                currency_amount > Zero::zero(),
+                Error::<T>::CurrencyAmountIsZero
+            );
+            ensure!(min_tokens > Zero::zero(), Error::<T>::MinTokensIsZero);
+            ensure!(
+                <T as Config>::Currency::free_balance(&buyer) >= currency_amount,
+                Error::<T>::BalanceTooLow
+            );
+            let mut exchange = Self::get_exchange(asset_id)?;
+            ensure!(
+                min_tokens <= exchange.token_reserve,
+                Error::<T>::MinTokensTooHigh
+            );
+
+            // ----------------------- Compute token amount ------------------------
+            let token_amount = Self::get_input_price(
+                &currency_amount,
+                &exchange.currency_reserve,
+                &T::AssetToCurrencyBalance::convert(exchange.token_reserve),
+            )?;
+            let token_amount = T::CurrencyToAssetBalance::convert(token_amount);
+            ensure!(token_amount >= min_tokens, Error::<T>::MinTokensTooHigh);
+
+            // --------------------- Currency & token transfer ---------------------
+            let pallet_account = T::PalletId::get().into_account_truncating();
+            <T as pallet::Config>::Currency::transfer(
+                &buyer,
+                &pallet_account,
+                currency_amount,
+                ExistenceRequirement::AllowDeath,
+            )?;
+            T::Assets::transfer(
+                asset_id.clone(),
+                &pallet_account,
+                &recipient,
+                token_amount,
+                false,
+            )?;
+
+            // -------------------------- Balances update --------------------------
+            exchange.currency_reserve.saturating_accrue(currency_amount);
+            exchange.token_reserve.saturating_reduce(token_amount);
+            <Exchanges<T>>::insert(asset_id.clone(), exchange);
+
+            // ---------------------------- Emit event -----------------------------
+            Self::deposit_event(Event::CurrencyTradedForAsset(
+                asset_id.clone(),
+                buyer,
+                recipient,
+                currency_amount,
+                token_amount,
+            ));
+            Ok(())
         }
     }
 }
