@@ -59,6 +59,7 @@ fn add_liquidity() {
             1_000,
             0, // `min_liquidity` is ignored if there's no liquidity yet
             1_000,
+            1,
         ));
 
         let exchange = Dex::exchanges(ASSET_A).unwrap();
@@ -88,6 +89,7 @@ fn add_liquidity() {
             500,
             500,
             1_000,
+            1,
         ));
 
         let exchange = Dex::exchanges(ASSET_A).unwrap();
@@ -116,8 +118,18 @@ fn add_liquidity() {
 fn add_liquidity_unsigned() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::add_liquidity(Origin::none(), ASSET_A, 1_000, 1_000, 1_000,),
+            Dex::add_liquidity(Origin::none(), ASSET_A, 1_000, 1_000, 1_000, 1),
             frame_support::error::BadOrigin
+        );
+    })
+}
+
+#[test]
+fn add_liquidity_deadline_passed() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 0),
+            Error::<Test>::DeadlinePassed
         );
     })
 }
@@ -126,7 +138,7 @@ fn add_liquidity_unsigned() {
 fn add_liquidity_zero_currency() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 0, 1_000, 1_000,),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 0, 1_000, 1_000, 1),
             Error::<Test>::CurrencyAmountIsZero
         );
     })
@@ -136,7 +148,7 @@ fn add_liquidity_zero_currency() {
 fn add_liquidity_zero_tokens() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 0,),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 0, 1),
             Error::<Test>::MaxTokensIsZero
         );
     })
@@ -152,6 +164,7 @@ fn add_liquidity_balance_too_low() {
                 INIT_BALANCE + 1,
                 1_000,
                 1_000,
+                1,
             ),
             Error::<Test>::BalanceTooLow
         );
@@ -162,7 +175,7 @@ fn add_liquidity_balance_too_low() {
 fn add_liquidity_asset_not_found() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::add_liquidity(Origin::signed(ACCOUNT_A), 2137, 1_000, 1_000, 1_000,),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_A), 2137, 1_000, 1_000, 1_000, 1),
             Error::<Test>::AssetNotFound
         );
     })
@@ -178,6 +191,7 @@ fn add_liquidity_not_enough_tokens() {
                 1_000,
                 1_000,
                 INIT_BALANCE + 1,
+                1,
             ),
             Error::<Test>::NotEnoughTokens
         );
@@ -188,7 +202,7 @@ fn add_liquidity_not_enough_tokens() {
 fn add_liquidity_exchange_not_found() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, 1_000, 1_000, 1_000,),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, 1_000, 1_000, 1_000, 1),
             Error::<Test>::ExchangeNotFound
         );
     })
@@ -198,9 +212,9 @@ fn add_liquidity_exchange_not_found() {
 fn add_liquidity_zero_min_liquidity() {
     new_test_ext().execute_with(|| {
         // `min_liquidity` is ignored if existing liquidity is 0, so we need to add some first.
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
         assert_noop!(
-            Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 0, 1_001,),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 0, 1_001, 1),
             Error::<Test>::MinLiquidityIsZero
         );
     })
@@ -210,9 +224,9 @@ fn add_liquidity_zero_min_liquidity() {
 fn add_liquidity_max_tokens_too_low() {
     new_test_ext().execute_with(|| {
         // `max_tokens` is always enough if existing liquidity is 0, so we need to add some first.
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
         assert_noop!(
-            Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 1_000, 10,),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 1_000, 10, 1),
             Error::<Test>::MaxTokensTooLow
         );
     })
@@ -222,9 +236,9 @@ fn add_liquidity_max_tokens_too_low() {
 fn add_liquidity_min_liquidity_too_high() {
     new_test_ext().execute_with(|| {
         // `min_liquidity` is ignored if existing liquidity is 0, so we need to add some first.
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
         assert_noop!(
-            Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 10_000, 1_001,),
+            Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 10_000, 1_001, 1),
             Error::<Test>::MinLiquidityTooHigh
         );
     })
@@ -233,13 +247,14 @@ fn add_liquidity_min_liquidity_too_high() {
 #[test]
 fn remove_liquidity() {
     new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
         assert_ok!(Dex::remove_liquidity(
             Origin::signed(ACCOUNT_A),
             ASSET_A,
             500,
             500,
-            500
+            500,
+            1,
         ));
         let exchange = Dex::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, 500);
@@ -256,10 +271,21 @@ fn remove_liquidity() {
 #[test]
 fn remove_liquidity_unsigned() {
     new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
         assert_noop!(
-            Dex::remove_liquidity(Origin::none(), ASSET_A, 500, 500, 500),
+            Dex::remove_liquidity(Origin::none(), ASSET_A, 500, 500, 500, 1),
             frame_support::error::BadOrigin
+        );
+    });
+}
+
+#[test]
+fn remove_liquidity_deadline_passed() {
+    new_test_ext().execute_with(|| {
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
+        assert_noop!(
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 500, 500, 0),
+            Error::<Test>::DeadlinePassed
         );
     });
 }
@@ -267,9 +293,9 @@ fn remove_liquidity_unsigned() {
 #[test]
 fn remove_zero_liquidity() {
     new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
         assert_noop!(
-            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 0, 500, 500),
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 0, 500, 500, 1),
             crate::Error::<Test>::LiquidityAmountIsZero
         );
     });
@@ -278,9 +304,9 @@ fn remove_zero_liquidity() {
 #[test]
 fn remove_liquidity_min_currency_zero() {
     new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
         assert_noop!(
-            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 0, 500),
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 0, 500, 1),
             crate::Error::<Test>::MinCurrencyIsZero
         );
     });
@@ -289,9 +315,9 @@ fn remove_liquidity_min_currency_zero() {
 #[test]
 fn remove_liquidity_min_tokens_zero() {
     new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
         assert_noop!(
-            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 500, 0),
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 500, 0, 1),
             crate::Error::<Test>::MinTokensIsZero
         );
     });
@@ -301,7 +327,7 @@ fn remove_liquidity_min_tokens_zero() {
 fn remove_liquidity_exchange_not_found() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, 500, 500, 500),
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, 500, 500, 500, 1),
             crate::Error::<Test>::ExchangeNotFound
         );
     });
@@ -310,9 +336,9 @@ fn remove_liquidity_exchange_not_found() {
 #[test]
 fn remove_liquidity_provider_liquidity_too_low() {
     new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
         assert_noop!(
-            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_500, 500, 500),
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_500, 500, 500, 1),
             crate::Error::<Test>::ProviderLiquidityTooLow
         );
     });
@@ -321,9 +347,9 @@ fn remove_liquidity_provider_liquidity_too_low() {
 #[test]
 fn remove_liquidity_min_currency_too_high() {
     new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
         assert_noop!(
-            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 1_500, 500),
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 1_500, 500, 1),
             crate::Error::<Test>::MinCurrencyTooHigh
         );
     });
@@ -332,9 +358,9 @@ fn remove_liquidity_min_currency_too_high() {
 #[test]
 fn remove_liquidity_min_tokens_too_high() {
     new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
         assert_noop!(
-            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 500, 1_500),
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 500, 1_500, 1),
             crate::Error::<Test>::MinTokensTooHigh
         );
     });

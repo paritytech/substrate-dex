@@ -171,6 +171,8 @@ pub mod pallet {
         Overflow,
         /// Underflow occurred
         Underflow,
+        /// Deadline specified for the operation has passed
+        DeadlinePassed,
     }
 
     #[derive(
@@ -247,9 +249,11 @@ pub mod pallet {
             currency_amount: BalanceOf<T>,
             min_liquidity: AssetBalanceOf<T>,
             max_tokens: AssetBalanceOf<T>,
+            deadline: T::BlockNumber,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
             let caller = ensure_signed(origin)?;
+            Self::check_deadline(&deadline)?;
             ensure!(
                 currency_amount > Zero::zero(),
                 Error::<T>::CurrencyAmountIsZero
@@ -346,9 +350,11 @@ pub mod pallet {
             liquidity_amount: AssetBalanceOf<T>,
             min_currency: BalanceOf<T>,
             min_tokens: AssetBalanceOf<T>,
+            deadline: T::BlockNumber,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
             let caller = ensure_signed(origin)?;
+            Self::check_deadline(&deadline)?;
             ensure!(
                 liquidity_amount > Zero::zero(),
                 Error::<T>::LiquidityAmountIsZero
@@ -429,6 +435,14 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         fn get_exchange(asset_id: &AssetIdOf<T>) -> Result<ExchangeOf<T>, Error<T>> {
             <Exchanges<T>>::get(asset_id.clone()).ok_or(Error::<T>::ExchangeNotFound)
+        }
+
+        fn check_deadline(deadline: &T::BlockNumber) -> Result<(), Error<T>> {
+            ensure!(
+                deadline >= &<frame_system::Pallet<T>>::block_number(),
+                Error::DeadlinePassed
+            );
+            Ok(())
         }
 
         fn get_input_price(
