@@ -42,7 +42,7 @@ pub mod pallet {
     use codec::EncodeLike;
     use frame_support::pallet_prelude::*;
     use frame_support::sp_runtime::traits::{
-        AccountIdConversion, CheckedAdd, CheckedSub, Convert, One, Saturating, Zero,
+        AccountIdConversion, CheckedAdd, CheckedMul, CheckedSub, Convert, One, Saturating, Zero,
     };
     use frame_support::sp_runtime::{FixedPointNumber, FixedPointOperand, FixedU128};
     use frame_support::traits::fungibles::{Create, Destroy, Inspect, Mutate, Transfer};
@@ -100,6 +100,14 @@ pub mod pallet {
 
         /// Information on runtime weights.
         type WeightInfo: WeightInfo;
+
+        /// Provider fee numerator.
+        #[pallet::constant]
+        type ProviderFeeNumerator: Get<BalanceOf<Self>>;
+
+        /// Provider fee denominator.
+        #[pallet::constant]
+        type ProviderFeeDenominator: Get<BalanceOf<Self>>;
     }
 
     #[pallet::event]
@@ -256,10 +264,7 @@ pub mod pallet {
                 WithdrawConsequence::UnknownAsset => Err(Error::<T>::AssetNotFound)?,
                 _ => Err(Error::<T>::NotEnoughTokens)?,
             };
-            let mut exchange = match <Exchanges<T>>::get(asset_id.clone()) {
-                Some(exchange) => exchange,
-                None => Err(Error::<T>::ExchangeNotFound)?,
-            };
+            let mut exchange = Self::get_exchange(&asset_id)?;
 
             // -------------------- Token/liquidity computation --------------------
             let total_liquidity = T::Assets::total_issuance(exchange.liquidity_token_id.clone());
@@ -350,10 +355,7 @@ pub mod pallet {
             );
             ensure!(min_currency > Zero::zero(), Error::<T>::MinCurrencyIsZero);
             ensure!(min_tokens > Zero::zero(), Error::<T>::MinTokensIsZero);
-            let mut exchange = match <Exchanges<T>>::get(asset_id.clone()) {
-                Some(exchange) => exchange,
-                None => Err(Error::<T>::ExchangeNotFound)?,
-            };
+            let mut exchange = Self::get_exchange(&asset_id)?;
             match T::Assets::can_withdraw(
                 exchange.liquidity_token_id.clone(),
                 &caller,
@@ -421,6 +423,60 @@ pub mod pallet {
                 liquidity_amount,
             ));
             Ok(())
+        }
+    }
+
+    impl<T: Config> Pallet<T> {
+        fn get_exchange(asset_id: &AssetIdOf<T>) -> Result<ExchangeOf<T>, Error<T>> {
+            <Exchanges<T>>::get(asset_id.clone()).ok_or(Error::<T>::ExchangeNotFound)
+        }
+
+        fn get_input_price(
+            input_amount: &BalanceOf<T>,
+            input_reserve: &BalanceOf<T>,
+            output_reserve: &BalanceOf<T>,
+        ) -> Result<BalanceOf<T>, Error<T>> {
+            debug_assert!(!input_reserve.is_zero());
+            debug_assert!(!output_reserve.is_zero());
+            let net_amount_numerator = T::ProviderFeeDenominator::get()
+                .checked_sub(&T::ProviderFeeNumerator::get())
+                .ok_or(Error::Underflow)?;
+            let input_amount_with_fee = input_amount
+                .checked_mul(&net_amount_numerator)
+                .ok_or(Error::Overflow)?;
+            let numerator = input_amount_with_fee
+                .checked_mul(output_reserve)
+                .ok_or(Error::Overflow)?;
+            let denominator = input_reserve
+                .checked_mul(&T::ProviderFeeDenominator::get())
+                .ok_or(Error::Overflow)?
+                .checked_add(&input_amount_with_fee)
+                .ok_or(Error::Overflow)?;
+            Ok(numerator / denominator)
+        }
+
+        fn get_output_price(
+            output_amount: &BalanceOf<T>,
+            input_reserve: &BalanceOf<T>,
+            output_reserve: &BalanceOf<T>,
+        ) -> Result<BalanceOf<T>, Error<T>> {
+            debug_assert!(!input_reserve.is_zero());
+            debug_assert!(!output_reserve.is_zero());
+            debug_assert!(output_amount < output_reserve);
+            let net_amount_numerator = T::ProviderFeeDenominator::get()
+                .checked_sub(&T::ProviderFeeNumerator::get())
+                .ok_or(Error::Underflow)?;
+            let numerator = input_reserve
+                .checked_mul(output_amount)
+                .ok_or(Error::Overflow)?
+                .checked_mul(&T::ProviderFeeDenominator::get())
+                .ok_or(Error::Overflow)?;
+            let denominator = output_reserve
+                .checked_sub(output_amount)
+                .ok_or(Error::Underflow)?
+                .checked_mul(&net_amount_numerator)
+                .ok_or(Error::Overflow)?;
+            Ok((numerator / denominator).saturating_add(<BalanceOf<T>>::one()))
         }
     }
 }

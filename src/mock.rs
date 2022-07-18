@@ -113,6 +113,9 @@ impl dex::Config for Test {
     type AssetRegistry = Assets;
     type Randomness = TestRandomness<Test>;
     type WeightInfo = ();
+    // Provider fee is 0.3%
+    type ProviderFeeNumerator = ConstU64<3>;
+    type ProviderFeeDenominator = ConstU64<1000>;
 }
 
 pub(crate) const ACCOUNT_A: u64 = 0;
