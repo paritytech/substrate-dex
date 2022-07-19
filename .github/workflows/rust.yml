@@ -1,0 +1,23 @@
+name: Rust check
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - uses: icepuma/rust-action@master
+        with:
+          args: >
+            cargo fmt -- --check
+            && cargo install cargo-sort
+            && cargo sort --check --grouped
+            && cargo clippy -- -Dwarnings
+            && cargo test --features runtime-benchmarks
