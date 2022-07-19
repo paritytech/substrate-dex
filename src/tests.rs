@@ -8,17 +8,15 @@ use frame_support::{assert_noop, assert_ok, BoundedBTreeMap};
 fn create_exchange() {
     new_test_ext().execute_with(|| {
         assert_ok!(Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B));
-        assert_eq!(
-            Dex::exchanges(ASSET_B).unwrap(),
-            Exchange {
-                asset_id: ASSET_B,
-                total_liquidity: 0,
-                currency_reserve: 0,
-                token_reserve: 0,
-                balances: BoundedBTreeMap::new()
-            }
+        let exchange = Dex::exchanges(ASSET_B).unwrap();
+        assert_eq!(exchange.asset_id, ASSET_B);
+        assert_eq!(exchange.currency_reserve, 0);
+        assert_eq!(exchange.token_reserve, 0);
+        assert_eq!(Assets::total_supply(exchange.liquidity_token_id), 0);
+        let event = last_event();
+        assert!(
+            matches!(last_event(), crate::Event::ExchangeCreated(asset, _) if asset == ASSET_B)
         );
-        assert_eq!(last_event(), crate::Event::ExchangeCreated(ASSET_B));
     })
 }
 
@@ -64,20 +62,21 @@ fn add_liquidity() {
         ));
 
         let exchange = Dex::exchanges(ASSET_A).unwrap();
-        assert_eq!(exchange.total_liquidity, 1_000);
         assert_eq!(exchange.currency_reserve, 1_000);
         assert_eq!(exchange.token_reserve, 1_000);
-        assert_eq!(exchange.balances.get(&ACCOUNT_A).unwrap(), &1_000);
-
         assert_eq!(Balances::free_balance(ACCOUNT_A), INIT_BALANCE - 1_000);
         assert_eq!(
             Assets::maybe_balance(ASSET_A, &ACCOUNT_A),
             Some(INIT_BALANCE - 1_000)
         );
+        assert_eq!(
+            Assets::maybe_balance(exchange.liquidity_token_id, &ACCOUNT_A),
+            Some(1_000)
+        );
+        assert_eq!(Assets::total_supply(exchange.liquidity_token_id), 1_000);
         let pallet_account = <Test as DexConfig>::PalletId::get().into_account_truncating();
         assert_eq!(Balances::free_balance(pallet_account), 1_000);
         assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(1_000));
-
         assert_eq!(
             last_event(),
             crate::Event::LiquidityAdded(ACCOUNT_A, ASSET_A, 1_000, 1_000, 1_000)
@@ -92,19 +91,20 @@ fn add_liquidity() {
         ));
 
         let exchange = Dex::exchanges(ASSET_A).unwrap();
-        assert_eq!(exchange.total_liquidity, 1_500);
         assert_eq!(exchange.currency_reserve, 1_500);
         assert_eq!(exchange.token_reserve, 1_501);
-        assert_eq!(exchange.balances.get(&ACCOUNT_B).unwrap(), &500);
-
         assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - 500);
         assert_eq!(
             Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
             Some(INIT_BALANCE - 501)
         );
+        assert_eq!(
+            Assets::maybe_balance(exchange.liquidity_token_id, &ACCOUNT_B),
+            Some(500)
+        );
+        assert_eq!(Assets::total_supply(exchange.liquidity_token_id), 1_500);
         assert_eq!(Balances::free_balance(pallet_account), 1_500);
         assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(1_501));
-
         assert_eq!(
             last_event(),
             crate::Event::LiquidityAdded(ACCOUNT_B, ASSET_A, 500, 501, 500)
@@ -190,19 +190,6 @@ fn add_liquidity_exchange_not_found() {
         assert_noop!(
             Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, 1_000, 1_000, 1_000,),
             Error::<Test>::ExchangeNotFound
-        );
-    })
-}
-
-#[test]
-fn add_liquidity_max_providers_reached() {
-    new_test_ext().execute_with(|| {
-        // Max providers is 2, so accounts A&B will fill in all slots.
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
-        Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 1_000, 1_001).unwrap();
-        assert_noop!(
-            Dex::add_liquidity(Origin::signed(ACCOUNT_C), ASSET_A, 1_000, 1_000, 1_001,),
-            Error::<Test>::MaxProvidersReached
         );
     })
 }
