@@ -84,9 +84,12 @@ pub mod pallet {
             + EncodeLike
             + Decode;
 
-        /// The fungible assets trait.
+        /// The type for tradable assets.
         type Assets: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>
-            + Transfer<Self::AccountId>
+            + Transfer<Self::AccountId>;
+
+        /// The type for liquidity tokens.
+        type AssetRegistry: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>
             + Mutate<Self::AccountId>
             + Create<Self::AccountId>
             + Destroy<Self::AccountId>;
@@ -202,7 +205,7 @@ pub mod pallet {
             let liquidity_token_id = <AssetIdOf<T>>::decode(&mut random_hash.as_ref())
                 .expect("asset ID shouldn't have more bytes than hash");
             let pallet_account = T::PalletId::get().into_account_truncating();
-            T::Assets::create(
+            T::AssetRegistry::create(
                 liquidity_token_id.clone(),
                 pallet_account,
                 false,
@@ -309,7 +312,7 @@ pub mod pallet {
                 token_amount,
                 true,
             )?;
-            T::Assets::mint_into(
+            T::AssetRegistry::mint_into(
                 exchange.liquidity_token_id.clone(),
                 &caller,
                 liquidity_minted,
@@ -396,7 +399,7 @@ pub mod pallet {
             ensure!(token_amount >= min_tokens, Error::<T>::MinTokensTooHigh);
 
             // --------------------- Currency & token transfer ---------------------
-            T::Assets::burn_from(exchange.liquidity_token_id, &caller, liquidity_amount)?;
+            T::AssetRegistry::burn_from(exchange.liquidity_token_id, &caller, liquidity_amount)?;
             let pallet_account = T::PalletId::get().into_account_truncating();
             <T as pallet::Config>::Currency::transfer(
                 &pallet_account,

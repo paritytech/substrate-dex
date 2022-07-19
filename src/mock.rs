@@ -110,6 +110,7 @@ impl dex::Config for Test {
     type CurrencyToAssetBalance = Identity;
     type AssetId = u32;
     type Assets = Assets;
+    type AssetRegistry = Assets;
     type Randomness = TestRandomness<Test>;
     type WeightInfo = ();
 }
