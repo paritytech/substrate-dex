@@ -42,8 +42,9 @@ pub mod pallet {
     use codec::EncodeLike;
     use frame_support::pallet_prelude::*;
     use frame_support::sp_runtime::traits::{
-        AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Convert, One, Zero,
+        AccountIdConversion, CheckedAdd, CheckedSub, Convert, One, Saturating, Zero,
     };
+    use frame_support::sp_runtime::{FixedPointNumber, FixedPointOperand, FixedU128};
     use frame_support::traits::fungibles::{Create, Destroy, Inspect, Mutate, Transfer};
     use frame_support::traits::tokens::{Balance, WithdrawConsequence};
     use frame_support::traits::{ExistenceRequirement, OriginTrait, Randomness, WithdrawReasons};
@@ -68,7 +69,7 @@ pub mod pallet {
         type Currency: Currency<Self::AccountId>;
 
         /// The balance type for assets (i.e. tokens).
-        type AssetBalance: Balance + MaxEncodedLen;
+        type AssetBalance: Balance + MaxEncodedLen + FixedPointOperand;
 
         // Two-way conversion between asset and currency balances
         type AssetToCurrencyBalance: Convert<Self::AssetBalance, BalanceOf<Self>>;
@@ -272,18 +273,13 @@ pub mod pallet {
                 let currency_amount = T::CurrencyToAssetBalance::convert(currency_amount);
                 let currency_reserve =
                     T::CurrencyToAssetBalance::convert(exchange.currency_reserve);
-                let token_amount = currency_amount
-                    .checked_mul(&exchange.token_reserve)
-                    .ok_or(Error::<T>::Overflow)?
-                    .checked_div(&currency_reserve)
-                    .expect("currency_reserve should never be 0 if total_liquidity > 0")
-                    .checked_add(&1u32.into())
-                    .ok_or(Error::<T>::Overflow)?;
-                let liquidity_minted = currency_amount
-                    .checked_mul(&total_liquidity)
-                    .ok_or(Error::<T>::Overflow)?
-                    .checked_div(&currency_reserve)
-                    .expect("currency_reserve should never be 0 if total_liquidity > 0");
+                let token_amount =
+                    FixedU128::saturating_from_rational(currency_amount, currency_reserve)
+                        .saturating_mul_int(exchange.token_reserve)
+                        .saturating_add(One::one());
+                let liquidity_minted =
+                    FixedU128::saturating_from_rational(currency_amount, currency_reserve)
+                        .saturating_mul_int(total_liquidity);
                 ensure!(token_amount <= max_tokens, Error::<T>::MaxTokensTooLow);
                 ensure!(
                     liquidity_minted >= min_liquidity,
@@ -381,17 +377,13 @@ pub mod pallet {
             // --------------- Withdrawn currency/tokens computation ---------------
             let currency_reserve = T::CurrencyToAssetBalance::convert(exchange.currency_reserve);
             let total_liquidity = T::Assets::total_issuance(exchange.liquidity_token_id.clone());
-            let currency_amount = liquidity_amount
-                .checked_mul(&currency_reserve)
-                .ok_or(Error::<T>::Overflow)?
-                .checked_div(&total_liquidity)
-                .expect("total_liquidity > 0 is checked earlier");
+            let currency_amount =
+                FixedU128::saturating_from_rational(liquidity_amount, total_liquidity)
+                    .saturating_mul_int(currency_reserve);
             let currency_amount = T::AssetToCurrencyBalance::convert(currency_amount);
-            let token_amount = liquidity_amount
-                .checked_mul(&exchange.token_reserve)
-                .ok_or(Error::<T>::Overflow)?
-                .checked_div(&total_liquidity)
-                .expect("total_liquidity > 0 is checked earlier");
+            let token_amount =
+                FixedU128::saturating_from_rational(liquidity_amount, total_liquidity)
+                    .saturating_mul_int(exchange.token_reserve);
             ensure!(
                 currency_amount >= min_currency,
                 Error::<T>::MinCurrencyTooHigh
