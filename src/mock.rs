@@ -87,6 +87,8 @@ impl dex::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type Balance = u64;
+    type AssetId = u32;
+    type Assets = Assets;
     type MaxExchangeProviders = ConstU32<MAX_PROVIDERS>;
     type WeightInfo = ();
 }
