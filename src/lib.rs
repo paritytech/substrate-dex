@@ -32,8 +32,9 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-type BalanceOf<T> = <T as Config>::Balance;
+type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountIdOf<T>>>::Balance;
 type AssetIdOf<T> = <T as Config>::AssetId;
+type AssetBalanceOf<T> = <T as Config>::AssetBalance;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -41,7 +42,8 @@ pub mod pallet {
     use codec::EncodeLike;
     use frame_support::pallet_prelude::*;
     use frame_support::sp_runtime::traits::{
-        AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, StaticLookup, Zero,
+        AccountIdConversion, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Convert, StaticLookup,
+        Zero,
     };
     use frame_support::traits::fungibles::{Inspect, Mutate, Transfer};
     use frame_support::traits::tokens::{Balance, WithdrawConsequence};
@@ -66,11 +68,12 @@ pub mod pallet {
         /// The currency trait.
         type Currency: Currency<Self::AccountId>;
 
-        // FIXME: Remove this and allow different types for currency and assets
-        /// Single balance type for base currency and assets.
-        type Balance: IsType<<<Self as Config>::Currency as Currency<AccountIdOf<Self>>>::Balance>
-            + Balance
-            + MaxEncodedLen;
+        /// The balance type for assets (i.e. tokens).
+        type AssetBalance: Balance + MaxEncodedLen;
+
+        // Two-way conversion between asset and currency balances
+        type AssetToCurrencyBalance: Convert<Self::AssetBalance, BalanceOf<Self>>;
+        type CurrencyToAssetBalance: Convert<BalanceOf<Self>, Self::AssetBalance>;
 
         /// The asset ID type.
         type AssetId: MaybeSerializeDeserialize
@@ -83,7 +86,7 @@ pub mod pallet {
             + Decode;
 
         /// The fungible assets trait.
-        type Assets: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
+        type Assets: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>
             + Transfer<Self::AccountId>
             + Mutate<Self::AccountId>;
 
@@ -105,16 +108,16 @@ pub mod pallet {
             T::AccountId,
             AssetIdOf<T>,
             BalanceOf<T>,
-            BalanceOf<T>,
-            BalanceOf<T>,
+            AssetBalanceOf<T>,
+            AssetBalanceOf<T>,
         ),
         /// Liquidity was removed from an exchange [provider_id, asset_id, currency_amount, token_amount, liquidity_amount]
         LiquidityRemoved(
             T::AccountId,
             AssetIdOf<T>,
             BalanceOf<T>,
-            BalanceOf<T>,
-            BalanceOf<T>,
+            AssetBalanceOf<T>,
+            AssetBalanceOf<T>,
         ),
     }
 
@@ -167,18 +170,18 @@ pub mod pallet {
     #[derive(
         Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, Default, MaxEncodedLen, TypeInfo,
     )]
-    pub struct Exchange<AssetId, Balance, BalanceMap> {
+    pub struct Exchange<AssetId, Balance, AssetBalance, BalanceMap> {
         pub asset_id: AssetId,
-        pub total_liquidity: Balance,
+        pub total_liquidity: AssetBalance,
         pub currency_reserve: Balance,
-        pub token_reserve: Balance,
+        pub token_reserve: AssetBalance,
         pub balances: BalanceMap,
     }
 
     // Type aliases for convenience
     type BalanceMap<T> =
-        BoundedBTreeMap<AccountIdOf<T>, BalanceOf<T>, <T as Config>::MaxExchangeProviders>;
-    type ExchangeOf<T> = Exchange<AssetIdOf<T>, BalanceOf<T>, BalanceMap<T>>;
+        BoundedBTreeMap<AccountIdOf<T>, AssetBalanceOf<T>, <T as Config>::MaxExchangeProviders>;
+    type ExchangeOf<T> = Exchange<AssetIdOf<T>, BalanceOf<T>, AssetBalanceOf<T>, BalanceMap<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn exchanges)]
@@ -206,9 +209,9 @@ pub mod pallet {
                 asset_id.clone(),
                 Exchange {
                     asset_id: asset_id.clone(),
-                    total_liquidity: <BalanceOf<T>>::default(),
+                    total_liquidity: <AssetBalanceOf<T>>::default(),
                     currency_reserve: <BalanceOf<T>>::default(),
-                    token_reserve: <BalanceOf<T>>::default(),
+                    token_reserve: <AssetBalanceOf<T>>::default(),
                     balances: BoundedBTreeMap::new(),
                 },
             );
@@ -225,8 +228,8 @@ pub mod pallet {
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
             currency_amount: BalanceOf<T>,
-            min_liquidity: BalanceOf<T>,
-            max_tokens: BalanceOf<T>,
+            min_liquidity: AssetBalanceOf<T>,
+            max_tokens: AssetBalanceOf<T>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
             let caller = ensure_signed(origin)?;
@@ -236,7 +239,7 @@ pub mod pallet {
             );
             ensure!(max_tokens > Zero::zero(), Error::<T>::MaxTokensIsZero);
             ensure!(
-                <T as Config>::Currency::free_balance(&caller) >= currency_amount.into(),
+                <T as Config>::Currency::free_balance(&caller) >= currency_amount,
                 Error::<T>::BalanceTooLow
             );
             match T::Assets::can_withdraw(asset_id.clone(), &caller, max_tokens) {
@@ -267,17 +270,20 @@ pub mod pallet {
             // -------------------- Token/liquidity computation --------------------
             let (token_amount, liquidity_minted) = if exchange.total_liquidity > Zero::zero() {
                 ensure!(min_liquidity > Zero::zero(), Error::<T>::MinLiquidityIsZero);
+                let currency_amount = T::CurrencyToAssetBalance::convert(currency_amount);
+                let currency_reserve =
+                    T::CurrencyToAssetBalance::convert(exchange.currency_reserve);
                 let token_amount = currency_amount
                     .checked_mul(&exchange.token_reserve)
                     .ok_or(Error::<T>::Overflow)?
-                    .checked_div(&exchange.currency_reserve)
+                    .checked_div(&currency_reserve)
                     .expect("currency_reserve should never be 0 if total_liquidity > 0")
                     .checked_add(&1u32.into())
                     .ok_or(Error::<T>::Overflow)?;
                 let liquidity_minted = currency_amount
                     .checked_mul(&exchange.total_liquidity)
                     .ok_or(Error::<T>::Overflow)?
-                    .checked_div(&exchange.currency_reserve)
+                    .checked_div(&currency_reserve)
                     .expect("currency_reserve should never be 0 if total_liquidity > 0");
                 ensure!(token_amount <= max_tokens, Error::<T>::MaxTokensTooLow);
                 ensure!(
@@ -286,7 +292,10 @@ pub mod pallet {
                 );
                 (token_amount, liquidity_minted)
             } else {
-                (max_tokens, currency_amount)
+                (
+                    max_tokens,
+                    T::CurrencyToAssetBalance::convert(currency_amount),
+                )
             };
 
             // --------------------- Currency & token transfer ---------------------
@@ -294,7 +303,7 @@ pub mod pallet {
             <T as pallet::Config>::Currency::transfer(
                 &caller,
                 &pallet_account,
-                currency_amount.into(),
+                currency_amount,
                 ExistenceRequirement::KeepAlive,
             )?;
             T::Assets::transfer(
@@ -341,9 +350,9 @@ pub mod pallet {
         pub fn remove_liquidity(
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
-            liquidity_amount: BalanceOf<T>,
+            liquidity_amount: AssetBalanceOf<T>,
             min_currency: BalanceOf<T>,
-            min_tokens: BalanceOf<T>,
+            min_tokens: AssetBalanceOf<T>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
             let caller = ensure_signed(origin)?;
@@ -371,11 +380,13 @@ pub mod pallet {
             );
 
             // --------------- Withdrawn currency/tokens computation ---------------
+            let currency_reserve = T::CurrencyToAssetBalance::convert(exchange.currency_reserve);
             let currency_amount = liquidity_amount
-                .checked_mul(&exchange.currency_reserve)
+                .checked_mul(&currency_reserve)
                 .ok_or(Error::<T>::Overflow)?
                 .checked_div(&exchange.total_liquidity)
                 .expect("total_liquidity > 0 is checked earlier");
+            let currency_amount = T::AssetToCurrencyBalance::convert(currency_amount);
             let token_amount = liquidity_amount
                 .checked_mul(&exchange.token_reserve)
                 .ok_or(Error::<T>::Overflow)?
@@ -392,7 +403,7 @@ pub mod pallet {
             <T as pallet::Config>::Currency::transfer(
                 &pallet_account,
                 &caller,
-                currency_amount.into(),
+                currency_amount,
                 ExistenceRequirement::AllowDeath,
             )?;
             T::Assets::transfer(
