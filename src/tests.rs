@@ -229,3 +229,113 @@ fn add_liquidity_min_liquidity_too_high() {
         );
     })
 }
+
+#[test]
+fn remove_liquidity() {
+    new_test_ext().execute_with(|| {
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        assert_ok!(Dex::remove_liquidity(
+            Origin::signed(ACCOUNT_A),
+            ASSET_A,
+            500,
+            500,
+            500
+        ));
+        let exchange = Dex::exchanges(ASSET_A).unwrap();
+        assert_eq!(exchange.currency_reserve, 500);
+        assert_eq!(exchange.token_reserve, 500);
+        assert_eq!(Assets::total_supply(exchange.liquidity_token_id), 500);
+        let event = last_event();
+        assert_eq!(
+            event,
+            crate::Event::LiquidityRemoved(ACCOUNT_A, ASSET_A, 500, 500, 500)
+        );
+    });
+}
+
+#[test]
+fn remove_liquidity_unsigned() {
+    new_test_ext().execute_with(|| {
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        assert_noop!(
+            Dex::remove_liquidity(Origin::none(), ASSET_A, 500, 500, 500),
+            frame_support::error::BadOrigin
+        );
+    });
+}
+
+#[test]
+fn remove_zero_liquidity() {
+    new_test_ext().execute_with(|| {
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        assert_noop!(
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 0, 500, 500),
+            crate::Error::<Test>::LiquidityAmountIsZero
+        );
+    });
+}
+
+#[test]
+fn remove_liquidity_min_currency_zero() {
+    new_test_ext().execute_with(|| {
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        assert_noop!(
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 0, 500),
+            crate::Error::<Test>::MinCurrencyIsZero
+        );
+    });
+}
+
+#[test]
+fn remove_liquidity_min_tokens_zero() {
+    new_test_ext().execute_with(|| {
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        assert_noop!(
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 500, 0),
+            crate::Error::<Test>::MinTokensIsZero
+        );
+    });
+}
+
+#[test]
+fn remove_liquidity_exchange_not_found() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, 500, 500, 500),
+            crate::Error::<Test>::ExchangeNotFound
+        );
+    });
+}
+
+#[test]
+fn remove_liquidity_provider_liquidity_too_low() {
+    new_test_ext().execute_with(|| {
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        assert_noop!(
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_500, 500, 500),
+            crate::Error::<Test>::ProviderLiquidityTooLow
+        );
+    });
+}
+
+#[test]
+fn remove_liquidity_min_currency_too_high() {
+    new_test_ext().execute_with(|| {
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        assert_noop!(
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 1_500, 500),
+            crate::Error::<Test>::MinCurrencyTooHigh
+        );
+    });
+}
+
+#[test]
+fn remove_liquidity_min_tokens_too_high() {
+    new_test_ext().execute_with(|| {
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000).unwrap();
+        assert_noop!(
+            Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 500, 1_500),
+            crate::Error::<Test>::MinTokensTooHigh
+        );
+    });
+}

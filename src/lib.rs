@@ -252,14 +252,9 @@ pub mod pallet {
                 Error::<T>::BalanceTooLow
             );
             match T::Assets::can_withdraw(asset_id.clone(), &caller, max_tokens) {
-                WithdrawConsequence::NoFunds => Err(Error::<T>::NotEnoughTokens)?,
-                WithdrawConsequence::WouldDie => Err(Error::<T>::NotEnoughTokens)?,
-                WithdrawConsequence::UnknownAsset => Err(Error::<T>::AssetNotFound)?,
-                WithdrawConsequence::Underflow => Err(Error::<T>::Underflow)?,
-                WithdrawConsequence::Overflow => Err(Error::<T>::Overflow)?,
-                WithdrawConsequence::Frozen => Err(Error::<T>::NotEnoughTokens)?,
-                WithdrawConsequence::ReducedToZero(_) => Err(Error::<T>::NotEnoughTokens)?,
                 WithdrawConsequence::Success => (),
+                WithdrawConsequence::UnknownAsset => Err(Error::<T>::AssetNotFound)?,
+                _ => Err(Error::<T>::NotEnoughTokens)?,
             };
             let mut exchange = match <Exchanges<T>>::get(asset_id.clone()) {
                 Some(exchange) => exchange,
@@ -364,14 +359,9 @@ pub mod pallet {
                 &caller,
                 liquidity_amount,
             ) {
-                WithdrawConsequence::NoFunds => Err(Error::<T>::ProviderLiquidityTooLow)?,
-                WithdrawConsequence::WouldDie => Err(Error::<T>::ProviderLiquidityTooLow)?,
-                WithdrawConsequence::UnknownAsset => Err(Error::<T>::AssetNotFound)?,
-                WithdrawConsequence::Underflow => Err(Error::<T>::Underflow)?,
-                WithdrawConsequence::Overflow => Err(Error::<T>::Overflow)?,
-                WithdrawConsequence::Frozen => Err(Error::<T>::ProviderLiquidityTooLow)?,
-                WithdrawConsequence::ReducedToZero(_) => Err(Error::<T>::ProviderLiquidityTooLow)?,
                 WithdrawConsequence::Success => (),
+                WithdrawConsequence::UnknownAsset => Err(Error::<T>::AssetNotFound)?,
+                _ => Err(Error::<T>::ProviderLiquidityTooLow)?,
             };
 
             // --------------- Withdrawn currency/tokens computation ---------------
@@ -391,7 +381,11 @@ pub mod pallet {
             ensure!(token_amount >= min_tokens, Error::<T>::MinTokensTooHigh);
 
             // --------------------- Currency & token transfer ---------------------
-            T::AssetRegistry::burn_from(exchange.liquidity_token_id, &caller, liquidity_amount)?;
+            T::AssetRegistry::burn_from(
+                exchange.liquidity_token_id.clone(),
+                &caller,
+                liquidity_amount,
+            )?;
             let pallet_account = T::PalletId::get().into_account_truncating();
             <T as pallet::Config>::Currency::transfer(
                 &pallet_account,
@@ -416,6 +410,7 @@ pub mod pallet {
                 .token_reserve
                 .checked_sub(&token_amount)
                 .ok_or(Error::<T>::Overflow)?;
+            <Exchanges<T>>::insert(asset_id.clone(), exchange);
 
             // ---------------------------- Emit event -----------------------------
             Self::deposit_event(Event::LiquidityRemoved(
