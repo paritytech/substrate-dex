@@ -498,7 +498,7 @@ pub mod pallet {
 
         /// Exchange currency for asset.
         ///
-        /// User specifies exact output (`token_amount`) and minimum input (`max_currency`).
+        /// User specifies exact output (`token_amount`) and maximum input (`max_currency`).
         ///
         /// The dispatch origin for this call must be _Signed_.
         #[pallet::weight(1000)]
@@ -522,7 +522,7 @@ pub mod pallet {
 
         /// Exchange currency for asset and transfer asset to recipient.
         ///
-        /// User specifies exact output (`token_amount`) and minimum input (`max_currency`).
+        /// User specifies exact output (`token_amount`) and maximum input (`max_currency`).
         ///
         /// The dispatch origin for this call must be _Signed_.
         #[pallet::weight(1000)]
@@ -588,6 +588,55 @@ pub mod pallet {
                 asset_id,
                 min_currency,
                 token_amount,
+                deadline,
+                caller,
+                recipient,
+            )
+        }
+
+        /// Exchange asset for currency.
+        ///
+        /// User specifies exact output (`currency_amount`) and maximum input (`max_tokens`).
+        ///
+        /// The dispatch origin for this call must be _Signed_.
+        #[pallet::weight(1000)]
+        pub fn asset_to_currency_swap_output(
+            origin: OriginFor<T>,
+            asset_id: AssetIdOf<T>,
+            currency_amount: BalanceOf<T>,
+            max_tokens: AssetBalanceOf<T>,
+            deadline: T::BlockNumber,
+        ) -> DispatchResult {
+            let caller = ensure_signed(origin)?;
+            Self::asset_to_currency_output(
+                asset_id,
+                currency_amount,
+                max_tokens,
+                deadline,
+                caller.clone(),
+                caller,
+            )
+        }
+
+        /// Exchange asset for currency and transfer asset to recipient.
+        ///
+        /// User specifies exact output (`currency_amount`) and maximum input (`max_tokens`).
+        ///
+        /// The dispatch origin for this call must be _Signed_.
+        #[pallet::weight(1000)]
+        pub fn asset_to_currency_transfer_output(
+            origin: OriginFor<T>,
+            asset_id: AssetIdOf<T>,
+            currency_amount: BalanceOf<T>,
+            max_tokens: AssetBalanceOf<T>,
+            deadline: T::BlockNumber,
+            recipient: AccountIdOf<T>,
+        ) -> DispatchResult {
+            let caller = ensure_signed(origin)?;
+            Self::asset_to_currency_output(
+                asset_id,
+                currency_amount,
+                max_tokens,
                 deadline,
                 caller,
                 recipient,
@@ -844,6 +893,40 @@ pub mod pallet {
                 currency_amount >= min_currency,
                 Error::<T>::MinCurrencyTooHigh
             );
+
+            // ------------------------- Perform the trade -------------------------
+            Self::swap_asset_for_currency(exchange, currency_amount, token_amount, buyer, recipient)
+        }
+
+        fn asset_to_currency_output(
+            asset_id: AssetIdOf<T>,
+            currency_amount: BalanceOf<T>,
+            max_tokens: AssetBalanceOf<T>,
+            deadline: T::BlockNumber,
+            buyer: AccountIdOf<T>,
+            recipient: AccountIdOf<T>,
+        ) -> DispatchResult {
+            // -------------------------- Validation part --------------------------
+            Self::check_deadline(&deadline)?;
+            ensure!(
+                currency_amount > Zero::zero(),
+                Error::<T>::CurrencyAmountIsZero
+            );
+            ensure!(max_tokens > Zero::zero(), Error::<T>::MaxTokensIsZero);
+            let mut exchange = Self::get_exchange(&asset_id)?;
+            ensure!(
+                currency_amount < exchange.currency_reserve,
+                Error::<T>::NotEnoughLiquidity
+            );
+
+            // ---------------------- Compute currency amount ----------------------
+            let token_amount = Self::get_output_price(
+                &currency_amount,
+                &T::AssetToCurrencyBalance::convert(exchange.token_reserve),
+                &exchange.currency_reserve,
+            )?;
+            let token_amount = T::CurrencyToAssetBalance::convert(token_amount);
+            ensure!(token_amount <= max_tokens, Error::<T>::MaxTokensTooLow);
 
             // ------------------------- Perform the trade -------------------------
             Self::swap_asset_for_currency(exchange, currency_amount, token_amount, buyer, recipient)
