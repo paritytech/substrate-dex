@@ -159,16 +159,17 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 pub(crate) fn last_event() -> dex::Event<Test> {
-    System::events()
+    last_n_events(1).pop().unwrap()
+}
+
+pub(crate) fn last_n_events(n: usize) -> Vec<dex::Event<Test>> {
+    let mut events: Vec<dex::Event<Test>> = System::events()
         .into_iter()
         .map(|r| r.event)
-        .filter_map(|e| {
-            if let Event::Dex(inner) = e {
-                Some(inner)
-            } else {
-                None
-            }
+        .filter_map(|event| match event {
+            Event::Dex(inner) => Some(inner),
+            _ => None,
         })
-        .last()
-        .unwrap()
+        .collect();
+    events.split_off(events.len() - n)
 }
