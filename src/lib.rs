@@ -808,7 +808,7 @@ pub mod pallet {
                 <T as Config>::Currency::free_balance(&buyer) >= currency_amount,
                 Error::<T>::BalanceTooLow
             );
-            let mut exchange = Self::get_exchange(&asset_id)?;
+            let exchange = Self::get_exchange(&asset_id)?;
             ensure!(
                 min_tokens < exchange.token_reserve,
                 Error::<T>::NotEnoughLiquidity
@@ -839,7 +839,11 @@ pub mod pallet {
             Self::check_deadline(&deadline)?;
             ensure!(max_currency > Zero::zero(), Error::<T>::MaxCurrencyIsZero);
             ensure!(token_amount > Zero::zero(), Error::<T>::TokenAmountIsZero);
-            let mut exchange = Self::get_exchange(&asset_id)?;
+            ensure!(
+                <T as Config>::Currency::free_balance(&buyer) >= max_currency,
+                Error::<T>::BalanceTooLow
+            );
+            let exchange = Self::get_exchange(&asset_id)?;
             ensure!(
                 token_amount < exchange.token_reserve,
                 Error::<T>::NotEnoughLiquidity
@@ -877,7 +881,7 @@ pub mod pallet {
                 WithdrawConsequence::UnknownAsset => Err(Error::<T>::AssetNotFound)?,
                 _ => Err(Error::<T>::NotEnoughTokens)?,
             };
-            let mut exchange = Self::get_exchange(&asset_id)?;
+            let exchange = Self::get_exchange(&asset_id)?;
             ensure!(
                 min_currency < exchange.currency_reserve,
                 Error::<T>::NotEnoughLiquidity
@@ -913,7 +917,12 @@ pub mod pallet {
                 Error::<T>::CurrencyAmountIsZero
             );
             ensure!(max_tokens > Zero::zero(), Error::<T>::MaxTokensIsZero);
-            let mut exchange = Self::get_exchange(&asset_id)?;
+            match T::Assets::can_withdraw(asset_id.clone(), &buyer, max_tokens) {
+                WithdrawConsequence::Success => (),
+                WithdrawConsequence::UnknownAsset => Err(Error::<T>::AssetNotFound)?,
+                _ => Err(Error::<T>::NotEnoughTokens)?,
+            };
+            let exchange = Self::get_exchange(&asset_id)?;
             ensure!(
                 currency_amount < exchange.currency_reserve,
                 Error::<T>::NotEnoughLiquidity

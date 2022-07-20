@@ -465,6 +465,22 @@ fn currency_to_asset_swap_input_min_tokens_zero() {
 }
 
 #[test]
+fn currency_to_asset_swap_input_balance_too_low() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Dex::currency_to_asset_swap_input(
+                Origin::signed(ACCOUNT_B),
+                ASSET_A,
+                INIT_BALANCE + 1,
+                INIT_BALANCE + 1,
+                1
+            ),
+            crate::Error::<Test>::BalanceTooLow
+        );
+    });
+}
+
+#[test]
 fn currency_to_asset_swap_input_exchange_not_found() {
     new_test_ext().execute_with(|| {
         assert_noop!(
@@ -622,6 +638,22 @@ fn currency_to_asset_swap_output_token_amount_zero() {
         assert_noop!(
             Dex::currency_to_asset_swap_input(Origin::signed(ACCOUNT_B), ASSET_A, 100, 0, 1),
             crate::Error::<Test>::MinTokensIsZero
+        );
+    });
+}
+
+#[test]
+fn currency_to_asset_swap_output_balance_too_low() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Dex::currency_to_asset_swap_output(
+                Origin::signed(ACCOUNT_B),
+                ASSET_A,
+                INIT_BALANCE + 1,
+                INIT_BALANCE + 1,
+                1
+            ),
+            crate::Error::<Test>::BalanceTooLow
         );
     });
 }
@@ -789,6 +821,22 @@ fn asset_to_currency_swap_input_token_amount_zero() {
 }
 
 #[test]
+fn asset_to_currency_swap_input_not_enough_tokens() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Dex::asset_to_currency_swap_input(
+                Origin::signed(ACCOUNT_B),
+                ASSET_A,
+                INIT_BALANCE + 1,
+                INIT_BALANCE + 1,
+                1
+            ),
+            crate::Error::<Test>::NotEnoughTokens
+        );
+    });
+}
+
+#[test]
 fn asset_to_currency_swap_input_exchange_not_found() {
     new_test_ext().execute_with(|| {
         assert_noop!(
@@ -943,6 +991,22 @@ fn asset_to_currency_swap_output_max_tokens_is_zero() {
         assert_noop!(
             Dex::asset_to_currency_swap_output(Origin::signed(ACCOUNT_B), ASSET_A, 100, 0, 1),
             crate::Error::<Test>::MaxTokensIsZero
+        );
+    });
+}
+
+#[test]
+fn asset_to_currency_swap_output_not_enough_tokens() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Dex::asset_to_currency_swap_output(
+                Origin::signed(ACCOUNT_B),
+                ASSET_A,
+                INIT_BALANCE + 1,
+                INIT_BALANCE + 1,
+                1
+            ),
+            crate::Error::<Test>::NotEnoughTokens
         );
     });
 }
