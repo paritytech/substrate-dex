@@ -428,6 +428,55 @@ pub mod pallet {
             ));
             Ok(())
         }
+
+        /// Exchange currency for asset.
+        ///
+        /// User specifies exact input (`currency_amount`) and minimum output (`min_tokens`).
+        ///
+        /// The dispatch origin for this call must be _Signed_.
+        #[pallet::weight(1000)]
+        pub fn currency_to_asset_swap_input(
+            origin: OriginFor<T>,
+            asset_id: AssetIdOf<T>,
+            currency_amount: BalanceOf<T>,
+            min_tokens: AssetBalanceOf<T>,
+            deadline: T::BlockNumber,
+        ) -> DispatchResult {
+            let caller = ensure_signed(origin)?;
+            Self::currency_to_token_input(
+                asset_id,
+                currency_amount,
+                min_tokens,
+                deadline,
+                caller.clone(),
+                caller,
+            )
+        }
+
+        /// Exchange currency for asset and transfer asset to recipient.
+        ///
+        /// User specifies exact input (`currency_amount`) and minimum output (`min_tokens`).
+        ///
+        /// The dispatch origin for this call must be _Signed_.
+        #[pallet::weight(1000)]
+        pub fn currency_to_asset_transfer_input(
+            origin: OriginFor<T>,
+            asset_id: AssetIdOf<T>,
+            currency_amount: BalanceOf<T>,
+            min_tokens: AssetBalanceOf<T>,
+            deadline: T::BlockNumber,
+            recipient: AccountIdOf<T>,
+        ) -> DispatchResult {
+            let caller = ensure_signed(origin)?;
+            Self::currency_to_token_input(
+                asset_id,
+                currency_amount,
+                min_tokens,
+                deadline,
+                caller,
+                recipient,
+            )
+        }
     }
 
     impl<T: Config> Pallet<T> {
@@ -450,6 +499,7 @@ pub mod pallet {
         ) -> Result<BalanceOf<T>, Error<T>> {
             debug_assert!(!input_reserve.is_zero());
             debug_assert!(!output_reserve.is_zero());
+            debug_assert!(input_amount < input_reserve);
             let net_amount_numerator = T::ProviderFeeDenominator::get()
                 .checked_sub(&T::ProviderFeeNumerator::get())
                 .ok_or(Error::Underflow)?;
@@ -484,15 +534,14 @@ pub mod pallet {
                 .checked_mul(&T::ProviderFeeDenominator::get())
                 .ok_or(Error::Overflow)?;
             let denominator = output_reserve
-                .checked_sub(output_amount)
-                .ok_or(Error::Underflow)?
+                .saturating_sub(*output_amount)
                 .checked_mul(&net_amount_numerator)
                 .ok_or(Error::Overflow)?;
             Ok((numerator / denominator).saturating_add(<BalanceOf<T>>::one()))
         }
 
         fn currency_to_token_input(
-            asset_id: &AssetIdOf<T>,
+            asset_id: AssetIdOf<T>,
             currency_amount: BalanceOf<T>,
             min_tokens: AssetBalanceOf<T>,
             deadline: T::BlockNumber,
@@ -510,9 +559,9 @@ pub mod pallet {
                 <T as Config>::Currency::free_balance(&buyer) >= currency_amount,
                 Error::<T>::BalanceTooLow
             );
-            let mut exchange = Self::get_exchange(asset_id)?;
+            let mut exchange = Self::get_exchange(&asset_id)?;
             ensure!(
-                min_tokens <= exchange.token_reserve,
+                min_tokens < exchange.token_reserve,
                 Error::<T>::MinTokensTooHigh
             );
 
@@ -548,7 +597,7 @@ pub mod pallet {
 
             // ---------------------------- Emit event -----------------------------
             Self::deposit_event(Event::CurrencyTradedForAsset(
-                asset_id.clone(),
+                asset_id,
                 buyer,
                 recipient,
                 currency_amount,

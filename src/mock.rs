@@ -121,7 +121,7 @@ impl dex::Config for Test {
 pub(crate) const ACCOUNT_A: u64 = 0;
 pub(crate) const ACCOUNT_B: u64 = 1;
 pub(crate) const ACCOUNT_C: u64 = 2;
-pub(crate) const INIT_BALANCE: u64 = 1_000_000;
+pub(crate) const INIT_BALANCE: u64 = 1_000_000_000_000_000;
 pub(crate) const ASSET_A: u32 = 100;
 pub(crate) const ASSET_B: u32 = 101;
 
