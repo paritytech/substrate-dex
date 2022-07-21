@@ -68,7 +68,7 @@ impl pallet_balances::Config for Test {
 impl pallet_assets::Config for Test {
     type Event = Event;
     type Balance = u64;
-    type AssetId = u32;
+    type AssetId = u64;
     type Currency = Balances;
     type ForceOrigin = EnsureRoot<u64>;
     type AssetDeposit = ConstU64<1>;
@@ -108,7 +108,7 @@ impl dex::Config for Test {
     type AssetBalance = u64;
     type AssetToCurrencyBalance = Identity;
     type CurrencyToAssetBalance = Identity;
-    type AssetId = u32;
+    type AssetId = u64;
     type Assets = Assets;
     type AssetRegistry = Assets;
     type Randomness = TestRandomness<Test>;
@@ -122,10 +122,10 @@ pub(crate) const ACCOUNT_A: u64 = 0;
 pub(crate) const ACCOUNT_B: u64 = 1;
 pub(crate) const ACCOUNT_C: u64 = 2;
 pub(crate) const INIT_BALANCE: u64 = 1_000_000_000_000_000;
-pub(crate) const ASSET_A: u32 = 100;
-pub(crate) const ASSET_B: u32 = 101;
-pub(crate) const LIQ_TOKEN_A: u32 = 200;
-pub(crate) const LIQ_TOKEN_B: u32 = 201;
+pub(crate) const ASSET_A: u64 = 100;
+pub(crate) const ASSET_B: u64 = 101;
+pub(crate) const LIQ_TOKEN_A: u64 = 200;
+pub(crate) const LIQ_TOKEN_B: u64 = 201;
 
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
     let mut storage = frame_system::GenesisConfig::default()
