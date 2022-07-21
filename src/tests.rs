@@ -1,8 +1,7 @@
 use crate::mock::*;
-use crate::pallet::{Config as DexConfig, ConfigHelper};
-use crate::{Error, Exchange};
-use frame_support::sp_runtime::traits::AccountIdConversion;
-use frame_support::{assert_noop, assert_ok, BoundedBTreeMap};
+use crate::pallet::ConfigHelper;
+use crate::Error;
+use frame_support::{assert_noop, assert_ok};
 
 #[test]
 fn create_exchange() {
@@ -13,7 +12,6 @@ fn create_exchange() {
         assert_eq!(exchange.currency_reserve, 0);
         assert_eq!(exchange.token_reserve, 0);
         assert_eq!(Assets::total_supply(exchange.liquidity_token_id), 0);
-        let event = last_event();
         assert!(
             matches!(last_event(), crate::Event::ExchangeCreated(asset, _) if asset == ASSET_B)
         );
@@ -23,10 +21,7 @@ fn create_exchange() {
 #[test]
 fn create_exchange_unsigned() {
     new_test_ext().execute_with(|| {
-        assert_noop!(
-            Dex::create_exchange(Origin::none(), 2137),
-            frame_support::error::BadOrigin
-        );
+        assert_noop!(Dex::create_exchange(Origin::none(), 2137), frame_support::error::BadOrigin);
     })
 }
 
@@ -66,14 +61,8 @@ fn add_liquidity() {
         assert_eq!(exchange.currency_reserve, 1_000);
         assert_eq!(exchange.token_reserve, 1_000);
         assert_eq!(Balances::free_balance(ACCOUNT_A), INIT_BALANCE - 1_000);
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_A),
-            Some(INIT_BALANCE - 1_000)
-        );
-        assert_eq!(
-            Assets::maybe_balance(exchange.liquidity_token_id, &ACCOUNT_A),
-            Some(1_000)
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_A), Some(INIT_BALANCE - 1_000));
+        assert_eq!(Assets::maybe_balance(exchange.liquidity_token_id, &ACCOUNT_A), Some(1_000));
         assert_eq!(Assets::total_supply(exchange.liquidity_token_id), 1_000);
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), 1_000);
@@ -83,34 +72,18 @@ fn add_liquidity() {
             crate::Event::LiquidityAdded(ACCOUNT_A, ASSET_A, 1_000, 1_000, 1_000)
         );
 
-        assert_ok!(Dex::add_liquidity(
-            Origin::signed(ACCOUNT_B),
-            ASSET_A,
-            500,
-            500,
-            1_000,
-            1,
-        ));
+        assert_ok!(Dex::add_liquidity(Origin::signed(ACCOUNT_B), ASSET_A, 500, 500, 1_000, 1,));
 
         let exchange = Dex::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, 1_500);
         assert_eq!(exchange.token_reserve, 1_501);
         assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - 500);
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
-            Some(INIT_BALANCE - 501)
-        );
-        assert_eq!(
-            Assets::maybe_balance(exchange.liquidity_token_id, &ACCOUNT_B),
-            Some(500)
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE - 501));
+        assert_eq!(Assets::maybe_balance(exchange.liquidity_token_id, &ACCOUNT_B), Some(500));
         assert_eq!(Assets::total_supply(exchange.liquidity_token_id), 1_500);
         assert_eq!(Balances::free_balance(pallet_account), 1_500);
         assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(1_501));
-        assert_eq!(
-            last_event(),
-            crate::Event::LiquidityAdded(ACCOUNT_B, ASSET_A, 500, 501, 500)
-        );
+        assert_eq!(last_event(), crate::Event::LiquidityAdded(ACCOUNT_B, ASSET_A, 500, 501, 500));
     })
 }
 
@@ -248,34 +221,18 @@ fn add_liquidity_min_liquidity_too_high() {
 fn remove_liquidity() {
     new_test_ext().execute_with(|| {
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 1_000, 1_000, 1_000, 1).unwrap();
-        assert_ok!(Dex::remove_liquidity(
-            Origin::signed(ACCOUNT_A),
-            ASSET_A,
-            500,
-            500,
-            500,
-            1,
-        ));
+        assert_ok!(Dex::remove_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 500, 500, 500, 1,));
         let exchange = Dex::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, 500);
         assert_eq!(exchange.token_reserve, 500);
         assert_eq!(Balances::free_balance(ACCOUNT_A), INIT_BALANCE - 500);
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_A),
-            Some(INIT_BALANCE - 500)
-        );
-        assert_eq!(
-            Assets::maybe_balance(exchange.liquidity_token_id, &ACCOUNT_A),
-            Some(500)
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_A), Some(INIT_BALANCE - 500));
+        assert_eq!(Assets::maybe_balance(exchange.liquidity_token_id, &ACCOUNT_A), Some(500));
         assert_eq!(Assets::total_supply(exchange.liquidity_token_id), 500);
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), 500);
         assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(500));
-        assert_eq!(
-            last_event(),
-            crate::Event::LiquidityRemoved(ACCOUNT_A, ASSET_A, 500, 500, 500)
-        );
+        assert_eq!(last_event(), crate::Event::LiquidityRemoved(ACCOUNT_A, ASSET_A, 500, 500, 500));
     });
 }
 
@@ -397,20 +354,11 @@ fn currency_to_asset_swap_input() {
         let exchange = Dex::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, alot + curr_amount);
         assert_eq!(exchange.token_reserve, alot - token_amount);
-        assert_eq!(
-            Balances::free_balance(ACCOUNT_B),
-            INIT_BALANCE - curr_amount
-        );
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
-            Some(INIT_BALANCE + token_amount)
-        );
+        assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - curr_amount);
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE + token_amount));
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), alot + curr_amount);
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
-            Some(alot - token_amount)
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(alot - token_amount));
         assert_eq!(
             last_event(),
             crate::Event::CurrencyTradedForAsset(
@@ -530,18 +478,9 @@ fn currency_to_asset_transfer_input() {
             ACCOUNT_C
         ));
 
-        assert_eq!(
-            Balances::free_balance(ACCOUNT_B),
-            INIT_BALANCE - curr_amount
-        );
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
-            Some(INIT_BALANCE)
-        );
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_C),
-            Some(INIT_BALANCE + token_amount)
-        );
+        assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - curr_amount);
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE));
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_C), Some(INIT_BALANCE + token_amount));
         assert_eq!(
             last_event(),
             crate::Event::CurrencyTradedForAsset(
@@ -575,20 +514,11 @@ fn currency_to_asset_swap_output() {
         let exchange = Dex::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, alot + curr_amount);
         assert_eq!(exchange.token_reserve, alot - token_amount);
-        assert_eq!(
-            Balances::free_balance(ACCOUNT_B),
-            INIT_BALANCE - curr_amount
-        );
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
-            Some(INIT_BALANCE + token_amount)
-        );
+        assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - curr_amount);
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE + token_amount));
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), alot + curr_amount);
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
-            Some(alot - token_amount)
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(alot - token_amount));
         assert_eq!(
             last_event(),
             crate::Event::CurrencyTradedForAsset(
@@ -708,18 +638,9 @@ fn currency_to_asset_transfer_output() {
             ACCOUNT_C
         ));
 
-        assert_eq!(
-            Balances::free_balance(ACCOUNT_B),
-            INIT_BALANCE - curr_amount
-        );
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
-            Some(INIT_BALANCE)
-        );
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_C),
-            Some(INIT_BALANCE + token_amount)
-        );
+        assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - curr_amount);
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE));
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_C), Some(INIT_BALANCE + token_amount));
         assert_eq!(
             last_event(),
             crate::Event::CurrencyTradedForAsset(
@@ -753,20 +674,11 @@ fn asset_to_currency_swap_input() {
         let exchange = Dex::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, alot - curr_amount);
         assert_eq!(exchange.token_reserve, alot + token_amount);
-        assert_eq!(
-            Balances::free_balance(ACCOUNT_B),
-            INIT_BALANCE + curr_amount
-        );
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
-            Some(INIT_BALANCE - token_amount)
-        );
+        assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE + curr_amount);
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE - token_amount));
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), alot - curr_amount);
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
-            Some(alot + token_amount)
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(alot + token_amount));
         assert_eq!(
             last_event(),
             crate::Event::AssetTradedForCurrency(
@@ -886,15 +798,9 @@ fn asset_to_currency_transfer_input() {
             ACCOUNT_C
         ));
 
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
-            Some(INIT_BALANCE - token_amount)
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE - token_amount));
         assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE);
-        assert_eq!(
-            Balances::free_balance(ACCOUNT_C),
-            INIT_BALANCE + curr_amount
-        );
+        assert_eq!(Balances::free_balance(ACCOUNT_C), INIT_BALANCE + curr_amount);
         assert_eq!(
             last_event(),
             crate::Event::AssetTradedForCurrency(
@@ -928,20 +834,11 @@ fn asset_to_currency_swap_output() {
         let exchange = Dex::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, alot - curr_amount);
         assert_eq!(exchange.token_reserve, alot + token_amount);
-        assert_eq!(
-            Balances::free_balance(ACCOUNT_B),
-            INIT_BALANCE + curr_amount
-        );
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
-            Some(INIT_BALANCE - token_amount)
-        );
+        assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE + curr_amount);
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE - token_amount));
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), alot - curr_amount);
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
-            Some(alot + token_amount)
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(alot + token_amount));
         assert_eq!(
             last_event(),
             crate::Event::AssetTradedForCurrency(
@@ -1061,15 +958,9 @@ fn asset_to_currency_transfer_output() {
             ACCOUNT_C
         ));
 
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
-            Some(INIT_BALANCE - token_amount)
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE - token_amount));
         assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE);
-        assert_eq!(
-            Balances::free_balance(ACCOUNT_C),
-            INIT_BALANCE + curr_amount
-        );
+        assert_eq!(Balances::free_balance(ACCOUNT_C), INIT_BALANCE + curr_amount);
         assert_eq!(
             last_event(),
             crate::Event::AssetTradedForCurrency(
@@ -1123,10 +1014,7 @@ fn asset_to_asset_swap_input() {
 
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), alot + alot);
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
-            Some(alot + sold_token_amount)
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(alot + sold_token_amount));
         assert_eq!(
             Assets::maybe_balance(ASSET_B, &pallet_account),
             Some(alot - bought_token_amount)
@@ -1358,10 +1246,7 @@ fn asset_to_asset_swap_output() {
 
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), alot + alot);
-        assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
-            Some(alot + sold_token_amount)
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(alot + sold_token_amount));
         assert_eq!(
             Assets::maybe_balance(ASSET_B, &pallet_account),
             Some(alot - bought_token_amount)

@@ -90,7 +90,7 @@ parameter_types! {
 pub struct TestRandomness<T>(sp_std::marker::PhantomData<T>);
 
 lazy_static! {
-    static ref RAND: Mutex<StdRng> = Mutex::new(StdRng::seed_from_u64(07_07_2022));
+    static ref RAND: Mutex<StdRng> = Mutex::new(StdRng::seed_from_u64(2022));
 }
 
 impl<T: frame_system::Config> Randomness<H256, T::BlockNumber> for TestRandomness<T> {
