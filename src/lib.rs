@@ -740,6 +740,7 @@ pub mod pallet {
         ) -> Result<(), Error<T>> {
             match T::Assets::can_withdraw(asset_id.clone(), account_id, *amount) {
                 WithdrawConsequence::Success => Ok(()),
+                WithdrawConsequence::ReducedToZero(_) => Ok(()),
                 WithdrawConsequence::UnknownAsset => Err(Error::<T>::AssetNotFound),
                 _ => Err(Error::<T>::NotEnoughTokens),
             }
@@ -750,12 +751,13 @@ pub mod pallet {
             account_id: &AccountIdOf<T>,
             amount: &AssetBalanceOf<T>,
         ) -> Result<(), Error<T>> {
-            Self::check_enough_tokens(&exchange.liquidity_token_id, account_id, amount).map_err(
-                |e| match e {
-                    Error::NotEnoughTokens => Error::ProviderLiquidityTooLow,
-                    e => e,
-                },
-            )
+            let asset_id = exchange.liquidity_token_id.clone();
+            match T::AssetRegistry::can_withdraw(asset_id, account_id, *amount) {
+                WithdrawConsequence::Success => Ok(()),
+                WithdrawConsequence::ReducedToZero(_) => Ok(()),
+                WithdrawConsequence::UnknownAsset => Err(Error::<T>::AssetNotFound),
+                _ => Err(Error::<T>::ProviderLiquidityTooLow),
+            }
         }
 
         fn get_input_price(

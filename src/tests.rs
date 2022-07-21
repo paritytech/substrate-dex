@@ -1438,3 +1438,60 @@ fn asset_to_asset_transfer_output() {
         );
     });
 }
+
+#[test]
+fn trade_assets_back_and_forth() {
+    new_test_ext().execute_with(|| {
+        let alot = 1_000_000_000_000;
+        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, alot, alot, alot, 1).unwrap();
+
+        let sold_token_amount = 500;
+        // sold token amount (500) - provider fee (0.3%) should be ~498
+        let bought_token_amount = 496; // currency amount (498) - provider fee (0.3%) should be ~496
+
+        // Trade back and forth A -> B -> A
+        assert_ok!(Dex::asset_to_asset_swap_output(
+            Origin::signed(ACCOUNT_B),
+            ASSET_A,
+            ASSET_B,
+            sold_token_amount,
+            bought_token_amount,
+            1
+        ));
+        assert_ok!(Dex::asset_to_asset_swap_output(
+            Origin::signed(ACCOUNT_B),
+            ASSET_B,
+            ASSET_A,
+            sold_token_amount,
+            bought_token_amount,
+            1,
+        ));
+
+        // Remove all liquidity
+        assert_ok!(Dex::remove_liquidity(
+            Origin::signed(ACCOUNT_A),
+            ASSET_A,
+            alot,
+            alot,
+            alot + 4,
+            1,
+        ));
+        assert_ok!(Dex::remove_liquidity(
+            Origin::signed(ACCOUNT_A),
+            ASSET_B,
+            alot,
+            alot,
+            alot + 4,
+            1,
+        ));
+
+        // Account A should have received 4 (500-496) of both tokens as tx fees from account B
+        assert_eq!(Balances::free_balance(ACCOUNT_A), INIT_BALANCE);
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_A), Some(INIT_BALANCE + 4));
+        assert_eq!(Assets::maybe_balance(ASSET_B, &ACCOUNT_A), Some(INIT_BALANCE + 4));
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE - 4));
+        assert_eq!(Assets::maybe_balance(ASSET_B, &ACCOUNT_B), Some(INIT_BALANCE - 4));
+    });
+}
