@@ -19,6 +19,7 @@
 mod benchmarking;
 #[cfg(test)]
 mod mock;
+pub mod rpc;
 #[cfg(test)]
 mod tests;
 pub mod weights;
@@ -55,7 +56,7 @@ pub mod pallet {
         transactional, PalletId,
     };
     use frame_system::pallet_prelude::*;
-    use std::fmt::Debug;
+    use sp_std::fmt::Debug;
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
@@ -713,7 +714,7 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
-        fn get_exchange(asset_id: &AssetIdOf<T>) -> Result<ExchangeOf<T>, Error<T>> {
+        pub(crate) fn get_exchange(asset_id: &AssetIdOf<T>) -> Result<ExchangeOf<T>, Error<T>> {
             <Exchanges<T>>::get(asset_id.clone()).ok_or(Error::<T>::ExchangeNotFound)
         }
 
@@ -760,14 +761,13 @@ pub mod pallet {
             }
         }
 
-        fn get_input_price(
+        pub(crate) fn get_input_price(
             input_amount: &BalanceOf<T>,
             input_reserve: &BalanceOf<T>,
             output_reserve: &BalanceOf<T>,
         ) -> Result<BalanceOf<T>, Error<T>> {
             debug_assert!(!input_reserve.is_zero());
             debug_assert!(!output_reserve.is_zero());
-            ensure!(input_amount < input_reserve, Error::<T>::NotEnoughLiquidity);
             let input_amount_with_fee = input_amount
                 .checked_mul(&T::net_amount_numerator())
                 .ok_or(Error::Overflow)?;
@@ -782,7 +782,7 @@ pub mod pallet {
             Ok(numerator / denominator)
         }
 
-        fn get_output_price(
+        pub(crate) fn get_output_price(
             output_amount: &BalanceOf<T>,
             input_reserve: &BalanceOf<T>,
             output_reserve: &BalanceOf<T>,

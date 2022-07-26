@@ -16,8 +16,8 @@ jobs:
       - uses: icepuma/rust-action@master
         with:
           args: >
-            cargo fmt -- --check
+            cargo fmt --all -- --check
             && cargo install cargo-sort
-            && cargo sort --check --grouped
-            && cargo clippy --tests -- -Dwarnings
-            && cargo test --features runtime-benchmarks
+            && cargo sort --workspace --check --grouped
+            && cargo clippy --workspace --tests -- -Dwarnings
+            && cargo test --workspace --features runtime-benchmarks

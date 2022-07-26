@@ -439,17 +439,6 @@ fn currency_to_asset_swap_input_exchange_not_found() {
 }
 
 #[test]
-fn currency_to_asset_swap_input_not_enough_liquidity() {
-    new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 100, 100, 100, 1).unwrap();
-        assert_noop!(
-            Dex::currency_to_asset_swap_input(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 1_000, 1),
-            crate::Error::<Test>::NotEnoughLiquidity
-        );
-    });
-}
-
-#[test]
 fn currency_to_asset_swap_input_min_tokens_too_high() {
     new_test_ext().execute_with(|| {
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 100, 100, 100, 1).unwrap();
@@ -754,17 +743,6 @@ fn asset_to_currency_swap_input_exchange_not_found() {
         assert_noop!(
             Dex::asset_to_currency_swap_input(Origin::signed(ACCOUNT_B), ASSET_B, 1, 1, 1),
             crate::Error::<Test>::ExchangeNotFound
-        );
-    });
-}
-
-#[test]
-fn asset_to_currency_swap_input_not_enough_liquidity() {
-    new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 100, 100, 100, 1).unwrap();
-        assert_noop!(
-            Dex::asset_to_currency_swap_input(Origin::signed(ACCOUNT_B), ASSET_A, 1_000, 1_000, 1),
-            crate::Error::<Test>::NotEnoughLiquidity
         );
     });
 }
@@ -1115,26 +1093,6 @@ fn asset_to_asset_swap_input_bought_asset_exchange_not_found() {
         assert_noop!(
             Dex::asset_to_asset_swap_input(Origin::signed(ACCOUNT_B), ASSET_A, ASSET_B, 1, 1, 1),
             crate::Error::<Test>::ExchangeNotFound
-        );
-    });
-}
-
-#[test]
-fn asset_to_asset_swap_input_not_enough_liquidity() {
-    new_test_ext().execute_with(|| {
-        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B).unwrap();
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 100, 100, 100, 1).unwrap();
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, 100, 100, 100, 1).unwrap();
-        assert_noop!(
-            Dex::asset_to_asset_swap_input(
-                Origin::signed(ACCOUNT_B),
-                ASSET_A,
-                ASSET_B,
-                1_000,
-                1_000,
-                1
-            ),
-            crate::Error::<Test>::NotEnoughLiquidity
         );
     });
 }
