@@ -1,7 +1,7 @@
 use crate::mock::*;
 use crate::pallet::ConfigHelper;
-use crate::Error;
-use frame_support::{assert_noop, assert_ok};
+use crate::{CurrencyToAsset, Error};
+use frame_support::{assert_noop, assert_ok, traits::Currency};
 
 #[test]
 fn create_exchange() {
@@ -335,7 +335,7 @@ fn remove_liquidity_min_tokens_too_high() {
 }
 
 #[test]
-fn currency_to_asset_input() {
+fn currency_to_asset_fixed_input() {
     new_test_ext().execute_with(|| {
         let alot = 1_000_000_000_000;
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
@@ -343,11 +343,13 @@ fn currency_to_asset_input() {
         let curr_amount = 500;
         let token_amount = 498; // currency amount (500) - provider fee (0.3%) should be ~498
 
-        assert_ok!(Dex::currency_to_asset_input(
+        assert_ok!(Dex::currency_to_asset(
             Origin::signed(ACCOUNT_B),
             ASSET_A,
-            curr_amount,
-            token_amount,
+            CurrencyToAsset::FixedInput {
+                currency_amount: curr_amount,
+                min_tokens: token_amount
+            },
             1,
             None
         ));
@@ -374,205 +376,177 @@ fn currency_to_asset_input() {
 }
 
 #[test]
-fn currency_to_asset_input_unsigned() {
+fn currency_to_asset_fixed_output() {
+    new_test_ext().execute_with(|| {
+        let alot = 1_000_000_000_000;
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
+
+        let curr_amount = 500;
+        let token_amount = 498; // currency amount (500) - provider fee (0.3%) should be ~498
+
+        assert_ok!(Dex::currency_to_asset(
+            Origin::signed(ACCOUNT_B),
+            ASSET_A,
+            CurrencyToAsset::FixedOutput {
+                max_currency: curr_amount,
+                token_amount
+            },
+            1,
+            None
+        ));
+
+        let exchange = Dex::exchanges(ASSET_A).unwrap();
+        assert_eq!(exchange.currency_reserve, alot + curr_amount);
+        assert_eq!(exchange.token_reserve, alot - token_amount);
+        assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - curr_amount);
+        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE + token_amount));
+        let pallet_account = Test::pallet_account();
+        assert_eq!(Balances::free_balance(pallet_account), alot + curr_amount);
+        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(alot - token_amount));
+        assert_eq!(
+            last_event(),
+            crate::Event::CurrencyTradedForAsset(
+                ASSET_A,
+                ACCOUNT_B,
+                ACCOUNT_B,
+                curr_amount,
+                token_amount,
+            )
+        );
+    });
+}
+
+#[test]
+fn currency_to_asset_unsigned() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::currency_to_asset_input(Origin::none(), ASSET_A, 1, 1, 1, None),
+            Dex::currency_to_asset(
+                Origin::none(),
+                ASSET_A,
+                CurrencyToAsset::FixedInput {
+                    currency_amount: 1,
+                    min_tokens: 1
+                },
+                1,
+                None
+            ),
             frame_support::error::BadOrigin
         );
     });
 }
 
 #[test]
-fn currency_to_asset_input_deadline_passed() {
+fn currency_to_asset_deadline_passed() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::currency_to_asset_input(Origin::signed(ACCOUNT_B), ASSET_A, 1, 1, 0, None),
+            Dex::currency_to_asset(
+                Origin::signed(ACCOUNT_B),
+                ASSET_A,
+                CurrencyToAsset::FixedInput {
+                    currency_amount: 1,
+                    min_tokens: 1
+                },
+                0,
+                None
+            ),
             crate::Error::<Test>::DeadlinePassed
         );
     });
 }
 
 #[test]
-fn currency_to_asset_input_currency_amount_zero() {
+fn currency_to_asset_currency_amount_zero() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::currency_to_asset_input(Origin::signed(ACCOUNT_B), ASSET_A, 0, 100, 1, None),
+            Dex::currency_to_asset(
+                Origin::signed(ACCOUNT_B),
+                ASSET_A,
+                CurrencyToAsset::FixedInput {
+                    currency_amount: 0,
+                    min_tokens: 100
+                },
+                1,
+                None
+            ),
             crate::Error::<Test>::CurrencyAmountIsZero
         );
     });
 }
 
 #[test]
-fn currency_to_asset_input_min_tokens_zero() {
+fn currency_to_asset_min_tokens_zero() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::currency_to_asset_input(Origin::signed(ACCOUNT_B), ASSET_A, 100, 0, 1, None),
+            Dex::currency_to_asset(
+                Origin::signed(ACCOUNT_B),
+                ASSET_A,
+                CurrencyToAsset::FixedInput {
+                    currency_amount: 100,
+                    min_tokens: 0
+                },
+                1,
+                None
+            ),
             crate::Error::<Test>::MinTokensIsZero
         );
     });
 }
 
 #[test]
-fn currency_to_asset_input_balance_too_low() {
+fn currency_to_asset_max_currency_zero() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::currency_to_asset_input(
+            Dex::currency_to_asset(
                 Origin::signed(ACCOUNT_B),
                 ASSET_A,
-                INIT_BALANCE + 1,
-                INIT_BALANCE + 1,
+                CurrencyToAsset::FixedOutput {
+                    max_currency: 0,
+                    token_amount: 100
+                },
                 1,
                 None
             ),
-            crate::Error::<Test>::BalanceTooLow
-        );
-    });
-}
-
-#[test]
-fn currency_to_asset_input_exchange_not_found() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            Dex::currency_to_asset_input(Origin::signed(ACCOUNT_B), ASSET_B, 1, 1, 1, None),
-            crate::Error::<Test>::ExchangeNotFound
-        );
-    });
-}
-
-#[test]
-fn currency_to_asset_input_min_tokens_too_high() {
-    new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 100, 100, 100, 1).unwrap();
-        assert_noop!(
-            Dex::currency_to_asset_input(Origin::signed(ACCOUNT_B), ASSET_A, 10, 50, 1, None),
-            crate::Error::<Test>::MinTokensTooHigh
-        );
-    });
-}
-
-#[test]
-fn currency_to_asset_input_transfer() {
-    new_test_ext().execute_with(|| {
-        let alot = 1_000_000_000_000;
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
-
-        let curr_amount = 500;
-        let token_amount = 498; // currency amount (500) - provider fee (0.3%) should be ~498
-
-        assert_ok!(Dex::currency_to_asset_input(
-            Origin::signed(ACCOUNT_B),
-            ASSET_A,
-            curr_amount,
-            token_amount,
-            1,
-            Some(ACCOUNT_C)
-        ));
-
-        assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - curr_amount);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE));
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_C), Some(INIT_BALANCE + token_amount));
-        assert_eq!(
-            last_event(),
-            crate::Event::CurrencyTradedForAsset(
-                ASSET_A,
-                ACCOUNT_B,
-                ACCOUNT_C,
-                curr_amount,
-                token_amount,
-            )
-        );
-    });
-}
-
-#[test]
-fn currency_to_asset_output() {
-    new_test_ext().execute_with(|| {
-        let alot = 1_000_000_000_000;
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
-
-        let curr_amount = 500;
-        let token_amount = 498; // currency amount (500) - provider fee (0.3%) should be ~498
-
-        assert_ok!(Dex::currency_to_asset_output(
-            Origin::signed(ACCOUNT_B),
-            ASSET_A,
-            curr_amount,
-            token_amount,
-            1,
-            None
-        ));
-
-        let exchange = Dex::exchanges(ASSET_A).unwrap();
-        assert_eq!(exchange.currency_reserve, alot + curr_amount);
-        assert_eq!(exchange.token_reserve, alot - token_amount);
-        assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - curr_amount);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE + token_amount));
-        let pallet_account = Test::pallet_account();
-        assert_eq!(Balances::free_balance(pallet_account), alot + curr_amount);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(alot - token_amount));
-        assert_eq!(
-            last_event(),
-            crate::Event::CurrencyTradedForAsset(
-                ASSET_A,
-                ACCOUNT_B,
-                ACCOUNT_B,
-                curr_amount,
-                token_amount,
-            )
-        );
-    });
-}
-
-#[test]
-fn currency_to_asset_output_unsigned() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            Dex::currency_to_asset_output(Origin::none(), ASSET_A, 1, 1, 1, None),
-            frame_support::error::BadOrigin
-        );
-    });
-}
-
-#[test]
-fn currency_to_asset_output_deadline_passed() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            Dex::currency_to_asset_output(Origin::signed(ACCOUNT_B), ASSET_A, 1, 1, 0, None),
-            crate::Error::<Test>::DeadlinePassed
-        );
-    });
-}
-
-#[test]
-fn currency_to_asset_output_max_currency_zero() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            Dex::currency_to_asset_output(Origin::signed(ACCOUNT_B), ASSET_A, 0, 100, 1, None),
             crate::Error::<Test>::MaxCurrencyIsZero
         );
     });
 }
 
 #[test]
-fn currency_to_asset_output_token_amount_zero() {
+fn currency_to_asset_token_amount_zero() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::currency_to_asset_output(Origin::signed(ACCOUNT_B), ASSET_A, 100, 0, 1, None),
+            Dex::currency_to_asset(
+                Origin::signed(ACCOUNT_B),
+                ASSET_A,
+                CurrencyToAsset::FixedOutput {
+                    max_currency: 100,
+                    token_amount: 0
+                },
+                1,
+                None
+            ),
             crate::Error::<Test>::TokenAmountIsZero
         );
     });
 }
 
 #[test]
-fn currency_to_asset_output_balance_too_low() {
+fn currency_to_asset_balance_too_low() {
     new_test_ext().execute_with(|| {
+        let alot = 1_000_000_000_000;
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
+        let currency_amount = 500;
+        let min_tokens = 498; // currency amount (500) - provider fee (0.3%) should be ~498
+
+        <Test as crate::Config>::Currency::make_free_balance_be(&ACCOUNT_B, 1);
         assert_noop!(
-            Dex::currency_to_asset_output(
+            Dex::currency_to_asset(
                 Origin::signed(ACCOUNT_B),
                 ASSET_A,
-                INIT_BALANCE + 1,
-                INIT_BALANCE + 1,
+                CurrencyToAsset::FixedInput {
+                    currency_amount,
+                    min_tokens
+                },
                 1,
                 None
             ),
@@ -582,25 +556,77 @@ fn currency_to_asset_output_balance_too_low() {
 }
 
 #[test]
-fn currency_to_asset_output_exchange_not_found() {
+fn currency_to_asset_exchange_not_found() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::currency_to_asset_output(Origin::signed(ACCOUNT_B), ASSET_B, 1, 1, 1, None),
+            Dex::currency_to_asset(
+                Origin::signed(ACCOUNT_B),
+                ASSET_B,
+                CurrencyToAsset::FixedInput {
+                    currency_amount: 1,
+                    min_tokens: 1
+                },
+                1,
+                None
+            ),
             crate::Error::<Test>::ExchangeNotFound
         );
     });
 }
 
 #[test]
-fn currency_to_asset_output_not_enough_liquidity() {
+fn currency_to_asset_min_tokens_too_high() {
     new_test_ext().execute_with(|| {
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 100, 100, 100, 1).unwrap();
         assert_noop!(
-            Dex::currency_to_asset_output(
+            Dex::currency_to_asset(
                 Origin::signed(ACCOUNT_B),
                 ASSET_A,
-                1_000,
-                1_000,
+                CurrencyToAsset::FixedInput {
+                    currency_amount: 10,
+                    min_tokens: 50
+                },
+                1,
+                None
+            ),
+            crate::Error::<Test>::MinTokensTooHigh
+        );
+    });
+}
+
+#[test]
+fn currency_to_asset_max_currency_too_low() {
+    new_test_ext().execute_with(|| {
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 100, 100, 100, 1).unwrap();
+        assert_noop!(
+            Dex::currency_to_asset(
+                Origin::signed(ACCOUNT_B),
+                ASSET_A,
+                CurrencyToAsset::FixedOutput {
+                    max_currency: 10,
+                    token_amount: 50
+                },
+                1,
+                None
+            ),
+            crate::Error::<Test>::MaxCurrencyTooLow
+        );
+    });
+}
+
+
+#[test]
+fn currency_to_asset_not_enough_liquidity() {
+    new_test_ext().execute_with(|| {
+        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 100, 100, 100, 1).unwrap();
+        assert_noop!(
+            Dex::currency_to_asset(
+                Origin::signed(ACCOUNT_B),
+                ASSET_A,
+                CurrencyToAsset::FixedOutput {
+                    max_currency: 1000,
+                    token_amount: 1000
+                },
                 1,
                 None
             ),
@@ -610,18 +636,7 @@ fn currency_to_asset_output_not_enough_liquidity() {
 }
 
 #[test]
-fn currency_to_asset_output_max_currency_too_low() {
-    new_test_ext().execute_with(|| {
-        Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 100, 100, 100, 1).unwrap();
-        assert_noop!(
-            Dex::currency_to_asset_output(Origin::signed(ACCOUNT_B), ASSET_A, 10, 50, 1, None),
-            crate::Error::<Test>::MaxCurrencyTooLow
-        );
-    });
-}
-
-#[test]
-fn currency_to_asset_output_transfer() {
+fn currency_to_asset_transfer() {
     new_test_ext().execute_with(|| {
         let alot = 1_000_000_000_000;
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
@@ -629,11 +644,13 @@ fn currency_to_asset_output_transfer() {
         let curr_amount = 500;
         let token_amount = 498; // currency amount (500) - provider fee (0.3%) should be ~498
 
-        assert_ok!(Dex::currency_to_asset_output(
+        assert_ok!(Dex::currency_to_asset(
             Origin::signed(ACCOUNT_B),
             ASSET_A,
-            curr_amount,
-            token_amount,
+            CurrencyToAsset::FixedInput {
+                currency_amount: curr_amount,
+                min_tokens: token_amount,
+            },
             1,
             Some(ACCOUNT_C)
         ));
