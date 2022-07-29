@@ -90,7 +90,7 @@ parameter_types! {
 pub struct TestRandomness<T>(sp_std::marker::PhantomData<T>);
 
 lazy_static! {
-    static ref RAND: Mutex<StdRng> = Mutex::new(StdRng::seed_from_u64(07_07_2022));
+    static ref RAND: Mutex<StdRng> = Mutex::new(StdRng::seed_from_u64(2022));
 }
 
 impl<T: frame_system::Config> Randomness<H256, T::BlockNumber> for TestRandomness<T> {
@@ -113,12 +113,15 @@ impl dex::Config for Test {
     type AssetRegistry = Assets;
     type Randomness = TestRandomness<Test>;
     type WeightInfo = ();
+    // Provider fee is 0.3%
+    type ProviderFeeNumerator = ConstU64<3>;
+    type ProviderFeeDenominator = ConstU64<1000>;
 }
 
 pub(crate) const ACCOUNT_A: u64 = 0;
 pub(crate) const ACCOUNT_B: u64 = 1;
 pub(crate) const ACCOUNT_C: u64 = 2;
-pub(crate) const INIT_BALANCE: u64 = 1_000_000;
+pub(crate) const INIT_BALANCE: u64 = 1_000_000_000_000_000;
 pub(crate) const ASSET_A: u32 = 100;
 pub(crate) const ASSET_B: u32 = 101;
 
@@ -156,16 +159,17 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 pub(crate) fn last_event() -> dex::Event<Test> {
-    System::events()
+    last_n_events(1).pop().unwrap()
+}
+
+pub(crate) fn last_n_events(n: usize) -> Vec<dex::Event<Test>> {
+    let mut events: Vec<dex::Event<Test>> = System::events()
         .into_iter()
         .map(|r| r.event)
-        .filter_map(|e| {
-            if let Event::Dex(inner) = e {
-                Some(inner)
-            } else {
-                None
-            }
+        .filter_map(|event| match event {
+            Event::Dex(inner) => Some(inner),
+            _ => None,
         })
-        .last()
-        .unwrap()
+        .collect();
+    events.split_off(events.len() - n)
 }

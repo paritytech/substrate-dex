@@ -19,5 +19,5 @@ jobs:
             cargo fmt -- --check
             && cargo install cargo-sort
             && cargo sort --check --grouped
-            && cargo clippy -- -Dwarnings
+            && cargo clippy --tests -- -Dwarnings
             && cargo test --features runtime-benchmarks
