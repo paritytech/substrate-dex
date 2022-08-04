@@ -1,14 +1,10 @@
 use crate as dex;
-use frame_support::traits::{ConstU16, ConstU32, ConstU64, Everything, GenesisBuild, Randomness};
+use frame_support::traits::{ConstU16, ConstU32, ConstU64, Everything, GenesisBuild};
 use frame_support::{parameter_types, PalletId};
 use frame_system::EnsureRoot;
-use lazy_static::lazy_static;
-use rand::rngs::StdRng;
-use rand::{RngCore, SeedableRng};
 use sp_core::H256;
 use sp_runtime::testing::Header;
 use sp_runtime::traits::{BlakeTwo256, Identity, IdentityLookup};
-use std::sync::Mutex;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -86,21 +82,6 @@ parameter_types! {
     pub const DexPalletId: PalletId = PalletId(*b"dex_mock");
 }
 
-// Seeded random generator provides unique values but doesn't make tests flaky
-pub struct TestRandomness<T>(sp_std::marker::PhantomData<T>);
-
-lazy_static! {
-    static ref RAND: Mutex<StdRng> = Mutex::new(StdRng::seed_from_u64(2022));
-}
-
-impl<T: frame_system::Config> Randomness<H256, T::BlockNumber> for TestRandomness<T> {
-    fn random(_subject: &[u8]) -> (H256, T::BlockNumber) {
-        let mut random_hash = H256::default();
-        RAND.lock().unwrap().fill_bytes(&mut random_hash.0);
-        (random_hash, frame_system::Pallet::<T>::block_number())
-    }
-}
-
 impl dex::Config for Test {
     type PalletId = DexPalletId;
     type Event = Event;
@@ -111,7 +92,6 @@ impl dex::Config for Test {
     type AssetId = u64;
     type Assets = Assets;
     type AssetRegistry = Assets;
-    type Randomness = TestRandomness<Test>;
     type WeightInfo = ();
     // Provider fee is 0.3%
     type ProviderFeeNumerator = ConstU64<3>;

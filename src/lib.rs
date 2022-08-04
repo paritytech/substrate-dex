@@ -51,7 +51,7 @@ pub mod pallet {
         traits::{
             fungibles::{Create, Destroy, Inspect, Mutate, Transfer},
             tokens::{Balance, WithdrawConsequence},
-            ExistenceRequirement, Randomness,
+            ExistenceRequirement,
         },
         transactional, PalletId,
     };
@@ -100,9 +100,6 @@ pub mod pallet {
             + Mutate<Self::AccountId>
             + Create<Self::AccountId>
             + Destroy<Self::AccountId>;
-
-        /// Randomness for liquidity token ID generation.
-        type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
 
         /// Information on runtime weights.
         type WeightInfo: WeightInfo;
