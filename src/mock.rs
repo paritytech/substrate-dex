@@ -116,12 +116,15 @@ impl dex::Config for Test {
     // Provider fee is 0.3%
     type ProviderFeeNumerator = ConstU64<3>;
     type ProviderFeeDenominator = ConstU64<1000>;
+    type MinDeposit = ConstU64<MIN_DEPOSIT>;
 }
 
 pub(crate) const ACCOUNT_A: u64 = 0;
 pub(crate) const ACCOUNT_B: u64 = 1;
 pub(crate) const ACCOUNT_C: u64 = 2;
 pub(crate) const INIT_BALANCE: u64 = 1_000_000_000_000_000;
+pub(crate) const INIT_LIQUIDITY: u64 = 1_000_000_000_000;
+pub(crate) const MIN_DEPOSIT: u64 = 1;
 pub(crate) const ASSET_A: u64 = 100;
 pub(crate) const ASSET_B: u64 = 101;
 pub(crate) const LIQ_TOKEN_A: u64 = 200;
@@ -157,7 +160,14 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
     let mut test_ext: sp_io::TestExternalities = storage.into();
     test_ext.execute_with(|| System::set_block_number(1));
     test_ext.execute_with(|| {
-        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_A, LIQ_TOKEN_A).unwrap()
+        Dex::create_exchange(
+            Origin::signed(ACCOUNT_A),
+            ASSET_A,
+            LIQ_TOKEN_A,
+            INIT_LIQUIDITY,
+            INIT_LIQUIDITY,
+        )
+        .unwrap()
     });
     test_ext
 }

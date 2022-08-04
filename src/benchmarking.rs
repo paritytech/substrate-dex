@@ -29,14 +29,8 @@ where
         RawOrigin::Signed(caller.clone()).into(),
         asset_id,
         liquidity_token_id,
-    )?;
-    Pallet::<T>::add_liquidity(
-        RawOrigin::Signed(caller).into(),
-        asset_id,
         INIT_LIQUIDITY,
         INIT_LIQUIDITY,
-        INIT_LIQUIDITY,
-        1,
     )?;
     Ok(())
 }
@@ -53,8 +47,9 @@ benchmarks! {
     create_exchange {
         let caller: T::AccountId = whitelisted_caller();
         T::Assets::create(ASSET_B, caller.clone(), true, 1).unwrap();
-        T::Assets::mint_into(ASSET_B, &caller, 1).unwrap();
-    }: _(RawOrigin::Signed(caller), ASSET_B, LIQ_TOKEN_B)
+        T::Assets::mint_into(ASSET_B, &caller, INIT_BALANCE).unwrap();
+        T::Currency::make_free_balance_be(&caller, INIT_BALANCE);
+    }: _(RawOrigin::Signed(caller), ASSET_B, LIQ_TOKEN_B, INIT_LIQUIDITY, INIT_LIQUIDITY)
     verify {
         assert!(Pallet::<T>::exchanges(ASSET_B).is_some());
     }

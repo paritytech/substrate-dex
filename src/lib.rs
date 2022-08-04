@@ -114,6 +114,10 @@ pub mod pallet {
         /// Provider fee denominator.
         #[pallet::constant]
         type ProviderFeeDenominator: Get<BalanceOf<Self>>;
+
+        /// Minimum currency deposit for a new exchange.
+        #[pallet::constant]
+        type MinDeposit: Get<BalanceOf<Self>>;
     }
 
     pub trait ConfigHelper: Config {
@@ -204,12 +208,16 @@ pub mod pallet {
         ExchangeNotFound,
         /// Zero value provided for trade amount parameter
         TradeAmountIsZero,
+        /// Zero value provided for `token_amount` parameter
+        TokenAmountIsZero,
         /// Zero value provided for `max_tokens` parameter
         MaxTokensIsZero,
         /// Zero value provided for `currency_amount` parameter
         CurrencyAmountIsZero,
         /// Value provided for `currency_amount` parameter is too high
         CurrencyAmountTooHigh,
+        /// Value provided for `currency_amount` parameter is too low
+        CurrencyAmountTooLow,
         /// Zero value provided for `min_liquidity` parameter
         MinLiquidityIsZero,
         /// Value provided for `max_tokens` parameter is too low
@@ -232,7 +240,7 @@ pub mod pallet {
         MinBoughtTokensTooHigh,
         /// Value provided for `max_sold_tokens` parameter is too low
         MaxSoldTokensTooLow,
-        // /// There is not enough liquidity in the exchange to perform trade
+        /// There is not enough liquidity in the exchange to perform trade
         NotEnoughLiquidity,
         /// Overflow occurred
         Overflow,
@@ -281,15 +289,18 @@ pub mod pallet {
         ///
         /// The dispatch origin for this call must be _Signed_.
         #[pallet::weight(1000)]
+        #[transactional]
         pub fn create_exchange(
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
             liquidity_token_id: AssetIdOf<T>,
+            currency_amount: BalanceOf<T>,
+            token_amount: AssetBalanceOf<T>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
-            let _caller = ensure_signed(origin)?;
-            // TODO: Fee/deposit for exchange creation (?)
-
+            let caller = ensure_signed(origin)?;
+            ensure!(currency_amount >= T::MinDeposit::get(), Error::<T>::CurrencyAmountTooLow);
+            ensure!(token_amount > Zero::zero(), Error::<T>::TokenAmountIsZero);
             if T::Assets::total_issuance(asset_id.clone()).is_zero() {
                 Err(Error::<T>::AssetNotFound)?
             }
@@ -307,15 +318,20 @@ pub mod pallet {
             .map_err(|_| Error::<T>::TokenIdTaken)?;
 
             // -------------------------- Update storage ---------------------------
-            <Exchanges<T>>::insert(
-                asset_id.clone(),
-                Exchange {
-                    asset_id: asset_id.clone(),
-                    currency_reserve: <BalanceOf<T>>::zero(),
-                    token_reserve: <AssetBalanceOf<T>>::zero(),
-                    liquidity_token_id: liquidity_token_id.clone(),
-                },
-            );
+            let exchange = Exchange {
+                asset_id: asset_id.clone(),
+                currency_reserve: <BalanceOf<T>>::zero(),
+                token_reserve: <AssetBalanceOf<T>>::zero(),
+                liquidity_token_id: liquidity_token_id.clone(),
+            };
+            let liquidity_minted = T::currency_to_asset(currency_amount);
+            Self::do_add_liquidity(
+                exchange,
+                currency_amount,
+                token_amount,
+                liquidity_minted,
+                caller,
+            )?;
 
             // ---------------------------- Emit event -----------------------------
             Self::deposit_event(Event::ExchangeCreated(asset_id, liquidity_token_id));
@@ -339,34 +355,30 @@ pub mod pallet {
             Self::check_deadline(&deadline)?;
             ensure!(currency_amount > Zero::zero(), Error::<T>::CurrencyAmountIsZero);
             ensure!(max_tokens > Zero::zero(), Error::<T>::MaxTokensIsZero);
+            ensure!(min_liquidity > Zero::zero(), Error::<T>::MinLiquidityIsZero);
             Self::check_enough_currency(&caller, &currency_amount)?;
             Self::check_enough_tokens(&asset_id, &caller, &max_tokens)?;
             let exchange = Self::get_exchange(&asset_id)?;
 
             // -------------------- Token/liquidity computation --------------------
             let total_liquidity = T::Assets::total_issuance(exchange.liquidity_token_id.clone());
-            let (token_amount, liquidity_minted) = if total_liquidity > Zero::zero() {
-                ensure!(min_liquidity > Zero::zero(), Error::<T>::MinLiquidityIsZero);
-                let currency_amount = T::currency_to_asset(currency_amount);
-                let currency_reserve = T::currency_to_asset(exchange.currency_reserve);
-                let token_amount =
-                    FixedU128::saturating_from_rational(currency_amount, currency_reserve)
-                        .saturating_mul_int(exchange.token_reserve)
-                        .saturating_add(One::one());
-                let liquidity_minted =
-                    FixedU128::saturating_from_rational(currency_amount, currency_reserve)
-                        .saturating_mul_int(total_liquidity);
-                ensure!(token_amount <= max_tokens, Error::<T>::MaxTokensTooLow);
-                ensure!(liquidity_minted >= min_liquidity, Error::<T>::MinLiquidityTooHigh);
-                (token_amount, liquidity_minted)
-            } else {
-                (max_tokens, T::currency_to_asset(currency_amount))
-            };
+            debug_assert!(total_liquidity > Zero::zero());
+            let currency_amount = T::currency_to_asset(currency_amount);
+            let currency_reserve = T::currency_to_asset(exchange.currency_reserve);
+            let token_amount =
+                FixedU128::saturating_from_rational(currency_amount, currency_reserve)
+                    .saturating_mul_int(exchange.token_reserve)
+                    .saturating_add(One::one());
+            let liquidity_minted =
+                FixedU128::saturating_from_rational(currency_amount, currency_reserve)
+                    .saturating_mul_int(total_liquidity);
+            ensure!(token_amount <= max_tokens, Error::<T>::MaxTokensTooLow);
+            ensure!(liquidity_minted >= min_liquidity, Error::<T>::MinLiquidityTooHigh);
 
             // ----------------------------- State update ----------------------------
             Self::do_add_liquidity(
                 exchange,
-                currency_amount,
+                T::asset_to_currency(currency_amount),
                 token_amount,
                 liquidity_minted,
                 caller,
