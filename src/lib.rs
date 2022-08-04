@@ -285,7 +285,7 @@ pub mod pallet {
         /// Create a new exchange.
         ///
         /// The dispatch origin for this call must be _Signed_.
-        #[pallet::weight(1000)]
+        #[pallet::weight(<T as Config>::WeightInfo::create_exchange())]
         #[transactional]
         pub fn create_exchange(
             origin: OriginFor<T>,
@@ -338,7 +338,7 @@ pub mod pallet {
         /// Add liquidity to an exchange.
         ///
         /// The dispatch origin for this call must be _Signed_.
-        #[pallet::weight(1000)]
+        #[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
         pub fn add_liquidity(
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
@@ -385,7 +385,7 @@ pub mod pallet {
         /// Remove liquidity from an exchange.
         ///
         /// The dispatch origin for this call must be _Signed_.
-        #[pallet::weight(1000)]
+        #[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
         pub fn remove_liquidity(
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
@@ -433,7 +433,7 @@ pub mod pallet {
         ///   - exact output (`output_amount`) and maximum input (`max_input`).
         ///
         /// The dispatch origin for this call must be _Signed_.
-        #[pallet::weight(1000)]
+        #[pallet::weight(<T as Config>::WeightInfo::currency_to_asset())]
         pub fn currency_to_asset(
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
@@ -470,7 +470,7 @@ pub mod pallet {
         ///   - exact output (`output_amount`) and maximum input (`max_input`).
         ///
         /// The dispatch origin for this call must be _Signed_.
-        #[pallet::weight(1000)]
+        #[pallet::weight(<T as Config>::WeightInfo::asset_to_currency())]
         pub fn asset_to_currency(
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
@@ -507,7 +507,7 @@ pub mod pallet {
         ///   - exact output (`output_amount`) and maximum input (`max_input`).
         ///
         /// The dispatch origin for this call must be _Signed_.
-        #[pallet::weight(1000)]
+        #[pallet::weight(<T as Config>::WeightInfo::asset_to_asset())]
         pub fn asset_to_asset(
             origin: OriginFor<T>,
             sold_asset_id: AssetIdOf<T>,
