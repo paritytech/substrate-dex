@@ -192,6 +192,8 @@ pub mod pallet {
         AssetNotFound,
         /// Exchange for the given asset already exists
         ExchangeAlreadyExists,
+        /// Provided liquidity token ID is already taken
+        TokenIdTaken,
         /// Not enough free balance to add liquidity or perform trade
         BalanceTooLow,
         /// Not enough tokens to add liquidity or perform trade
@@ -279,7 +281,11 @@ pub mod pallet {
         ///
         /// The dispatch origin for this call must be _Signed_.
         #[pallet::weight(1000)]
-        pub fn create_exchange(origin: OriginFor<T>, asset_id: AssetIdOf<T>) -> DispatchResult {
+        pub fn create_exchange(
+            origin: OriginFor<T>,
+            asset_id: AssetIdOf<T>,
+            liquidity_token_id: AssetIdOf<T>,
+        ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
             let _caller = ensure_signed(origin)?;
             // TODO: Fee/deposit for exchange creation (?)
@@ -292,15 +298,13 @@ pub mod pallet {
             }
 
             // ----------------------- Create liquidity token ----------------------
-            let random_hash = T::Randomness::random("liquidity_token_id".as_bytes()).0;
-            let liquidity_token_id = <AssetIdOf<T>>::decode(&mut random_hash.as_ref())
-                .expect("asset ID shouldn't have more bytes than hash");
             T::AssetRegistry::create(
                 liquidity_token_id.clone(),
                 T::pallet_account(),
                 false,
                 <AssetBalanceOf<T>>::one(),
-            )?;
+            )
+            .map_err(|_| Error::<T>::TokenIdTaken)?;
 
             // -------------------------- Update storage ---------------------------
             <Exchanges<T>>::insert(

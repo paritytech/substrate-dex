@@ -9,7 +9,7 @@ use frame_support::{
 #[test]
 fn create_exchange() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B));
+        assert_ok!(Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B, LIQ_TOKEN_B));
         let exchange = Dex::exchanges(ASSET_B).unwrap();
         assert_eq!(exchange.asset_id, ASSET_B);
         assert_eq!(exchange.currency_reserve, 0);
@@ -24,7 +24,10 @@ fn create_exchange() {
 #[test]
 fn create_exchange_unsigned() {
     new_test_ext().execute_with(|| {
-        assert_noop!(Dex::create_exchange(Origin::none(), 2137), frame_support::error::BadOrigin);
+        assert_noop!(
+            Dex::create_exchange(Origin::none(), 2137, LIQ_TOKEN_A),
+            frame_support::error::BadOrigin
+        );
     })
 }
 
@@ -32,7 +35,7 @@ fn create_exchange_unsigned() {
 fn create_exchange_asset_not_found() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::create_exchange(Origin::signed(ACCOUNT_A), 2137),
+            Dex::create_exchange(Origin::signed(ACCOUNT_A), 2137, LIQ_TOKEN_A),
             Error::<Test>::AssetNotFound
         );
     })
@@ -42,8 +45,18 @@ fn create_exchange_asset_not_found() {
 fn create_exchange_already_exists() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_A),
+            Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_A, LIQ_TOKEN_A),
             Error::<Test>::ExchangeAlreadyExists
+        );
+    })
+}
+
+#[test]
+fn create_exchange_token_id_taken() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B, LIQ_TOKEN_A),
+            Error::<Test>::TokenIdTaken
         );
     })
 }
@@ -1013,7 +1026,7 @@ fn asset_to_currency_fixed_output() {
 fn asset_to_asset_fixed_input() {
     new_test_ext().execute_with(|| {
         let alot = 1_000_000_000_000;
-        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B).unwrap();
+        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B, LIQ_TOKEN_B).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, alot, alot, alot, 1).unwrap();
 
@@ -1204,7 +1217,7 @@ fn asset_to_asset_output_bought_token_amount_zero() {
 fn asset_to_asset_not_enough_tokens() {
     new_test_ext().execute_with(|| {
         let alot = 1_000_000_000_000;
-        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B).unwrap();
+        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B, LIQ_TOKEN_B).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, alot, alot, alot, 1).unwrap();
 
@@ -1274,7 +1287,7 @@ fn asset_to_asset_bought_asset_exchange_not_found() {
 #[test]
 fn asset_to_asset_min_bought_tokens_too_high() {
     new_test_ext().execute_with(|| {
-        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B).unwrap();
+        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B, LIQ_TOKEN_B).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 100, 100, 100, 1).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, 100, 100, 100, 1).unwrap();
         assert_noop!(
@@ -1298,7 +1311,7 @@ fn asset_to_asset_min_bought_tokens_too_high() {
 fn asset_to_asset_max_sold_tokens_too_low() {
     new_test_ext().execute_with(|| {
         let alot = 1_000_000_000_000;
-        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B).unwrap();
+        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B, LIQ_TOKEN_B).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, alot, alot, alot, 1).unwrap();
         assert_noop!(
@@ -1321,7 +1334,7 @@ fn asset_to_asset_max_sold_tokens_too_low() {
 #[test]
 fn asset_to_asset_not_enough_liquidity() {
     new_test_ext().execute_with(|| {
-        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B).unwrap();
+        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B, LIQ_TOKEN_B).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, 100, 100, 100, 1).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, 100, 100, 100, 1).unwrap();
         assert_noop!(
@@ -1345,7 +1358,7 @@ fn asset_to_asset_not_enough_liquidity() {
 fn asset_to_asset_transfer() {
     new_test_ext().execute_with(|| {
         let alot = 1_000_000_000_000;
-        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B).unwrap();
+        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B, LIQ_TOKEN_B).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, alot, alot, alot, 1).unwrap();
 
@@ -1401,7 +1414,7 @@ fn asset_to_asset_transfer() {
 fn asset_to_asset_fixed_output() {
     new_test_ext().execute_with(|| {
         let alot = 1_000_000_000_000;
-        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B).unwrap();
+        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B, LIQ_TOKEN_B).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, alot, alot, alot, 1).unwrap();
 
@@ -1472,7 +1485,7 @@ fn asset_to_asset_fixed_output() {
 fn trade_assets_back_and_forth() {
     new_test_ext().execute_with(|| {
         let alot = 1_000_000_000_000;
-        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B).unwrap();
+        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_B, LIQ_TOKEN_B).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_A, alot, alot, alot, 1).unwrap();
         Dex::add_liquidity(Origin::signed(ACCOUNT_A), ASSET_B, alot, alot, alot, 1).unwrap();
 

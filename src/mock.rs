@@ -124,6 +124,8 @@ pub(crate) const ACCOUNT_C: u64 = 2;
 pub(crate) const INIT_BALANCE: u64 = 1_000_000_000_000_000;
 pub(crate) const ASSET_A: u32 = 100;
 pub(crate) const ASSET_B: u32 = 101;
+pub(crate) const LIQ_TOKEN_A: u32 = 200;
+pub(crate) const LIQ_TOKEN_B: u32 = 201;
 
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
     let mut storage = frame_system::GenesisConfig::default()
@@ -154,7 +156,9 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
     .unwrap();
     let mut test_ext: sp_io::TestExternalities = storage.into();
     test_ext.execute_with(|| System::set_block_number(1));
-    test_ext.execute_with(|| Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_A).unwrap());
+    test_ext.execute_with(|| {
+        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_A, LIQ_TOKEN_A).unwrap()
+    });
     test_ext
 }
 
