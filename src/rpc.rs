@@ -26,6 +26,8 @@ impl<T: Config> From<Error<T>> for RpcError {
 }
 
 impl<T: Config> Pallet<T> {
+    /// Get the price for a fixed-input currency-to-asset trade,
+    /// i.e. 'How much asset would I get if I paid this much currency'?
     pub fn get_currency_to_asset_input_price(
         asset_id: AssetIdOf<T>,
         currency_amount: BalanceOf<T>,
@@ -39,6 +41,8 @@ impl<T: Config> Pallet<T> {
         Ok(T::currency_to_asset(price))
     }
 
+    /// Get the price for a fixed-output currency-to-asset trade,
+    /// i.e. 'How much currency do I have to pay to get this much asset'?
     pub fn get_currency_to_asset_output_price(
         asset_id: AssetIdOf<T>,
         token_amount: AssetBalanceOf<T>,
@@ -52,6 +56,8 @@ impl<T: Config> Pallet<T> {
         Ok(price)
     }
 
+    /// Get the price for a fixed-input asset-to-currency trade,
+    /// i.e. 'How much currency would I get if I paid this much asset'?
     pub fn get_asset_to_currency_input_price(
         asset_id: AssetIdOf<T>,
         token_amount: AssetBalanceOf<T>,
@@ -65,6 +71,8 @@ impl<T: Config> Pallet<T> {
         Ok(price)
     }
 
+    /// Get the price for a fixed-output currency-to-asset trade,
+    /// i.e. 'How much asset do I have to pay to get this much currency'?
     pub fn get_asset_to_currency_output_price(
         asset_id: AssetIdOf<T>,
         currency_amount: BalanceOf<T>,
