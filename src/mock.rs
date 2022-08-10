@@ -1,14 +1,10 @@
 use crate as dex;
-use frame_support::traits::{ConstU16, ConstU32, ConstU64, Everything, GenesisBuild, Randomness};
+use frame_support::traits::{ConstU16, ConstU32, ConstU64, Everything, GenesisBuild};
 use frame_support::{parameter_types, PalletId};
 use frame_system::EnsureRoot;
-use lazy_static::lazy_static;
-use rand::rngs::StdRng;
-use rand::{RngCore, SeedableRng};
 use sp_core::H256;
 use sp_runtime::testing::Header;
 use sp_runtime::traits::{BlakeTwo256, Identity, IdentityLookup};
-use std::sync::Mutex;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -86,21 +82,6 @@ parameter_types! {
     pub const DexPalletId: PalletId = PalletId(*b"dex_mock");
 }
 
-// Seeded random generator provides unique values but doesn't make tests flaky
-pub struct TestRandomness<T>(sp_std::marker::PhantomData<T>);
-
-lazy_static! {
-    static ref RAND: Mutex<StdRng> = Mutex::new(StdRng::seed_from_u64(2022));
-}
-
-impl<T: frame_system::Config> Randomness<H256, T::BlockNumber> for TestRandomness<T> {
-    fn random(_subject: &[u8]) -> (H256, T::BlockNumber) {
-        let mut random_hash = H256::default();
-        RAND.lock().unwrap().fill_bytes(&mut random_hash.0);
-        (random_hash, frame_system::Pallet::<T>::block_number())
-    }
-}
-
 impl dex::Config for Test {
     type PalletId = DexPalletId;
     type Event = Event;
@@ -111,17 +92,19 @@ impl dex::Config for Test {
     type AssetId = u64;
     type Assets = Assets;
     type AssetRegistry = Assets;
-    type Randomness = TestRandomness<Test>;
     type WeightInfo = ();
     // Provider fee is 0.3%
     type ProviderFeeNumerator = ConstU64<3>;
     type ProviderFeeDenominator = ConstU64<1000>;
+    type MinDeposit = ConstU64<MIN_DEPOSIT>;
 }
 
 pub(crate) const ACCOUNT_A: u64 = 0;
 pub(crate) const ACCOUNT_B: u64 = 1;
 pub(crate) const ACCOUNT_C: u64 = 2;
 pub(crate) const INIT_BALANCE: u64 = 1_000_000_000_000_000;
+pub(crate) const INIT_LIQUIDITY: u64 = 1_000_000_000_000;
+pub(crate) const MIN_DEPOSIT: u64 = 1;
 pub(crate) const ASSET_A: u64 = 100;
 pub(crate) const ASSET_B: u64 = 101;
 pub(crate) const LIQ_TOKEN_A: u64 = 200;
@@ -157,7 +140,14 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
     let mut test_ext: sp_io::TestExternalities = storage.into();
     test_ext.execute_with(|| System::set_block_number(1));
     test_ext.execute_with(|| {
-        Dex::create_exchange(Origin::signed(ACCOUNT_A), ASSET_A, LIQ_TOKEN_A).unwrap()
+        Dex::create_exchange(
+            Origin::signed(ACCOUNT_A),
+            ASSET_A,
+            LIQ_TOKEN_A,
+            INIT_LIQUIDITY,
+            INIT_LIQUIDITY,
+        )
+        .unwrap()
     });
     test_ext
 }
