@@ -341,7 +341,7 @@ use sp_runtime::traits::Identity;
 Configure the assets pallet.
 ```rust
 pub type AssetBalance = Balance;
-pub type AssetId = u64;
+pub type AssetId = u32;
 
 impl pallet_assets::Config for Runtime {
     type Event = Event;

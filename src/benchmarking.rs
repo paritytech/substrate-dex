@@ -7,18 +7,18 @@ use frame_support::traits::{
 };
 use frame_system::RawOrigin;
 
-const INIT_BALANCE: u64 = 1_000_000_000_000_000;
-const INIT_LIQUIDITY: u64 = 1_000_000_000_000;
-const ASSET_A: u64 = 1;
-const ASSET_B: u64 = 2;
-const LIQ_TOKEN_A: u64 = 11;
-const LIQ_TOKEN_B: u64 = 12;
+const INIT_BALANCE: u128 = 1_000_000_000_000_000;
+const INIT_LIQUIDITY: u128 = 1_000_000_000_000;
+const ASSET_A: u32 = 1;
+const ASSET_B: u32 = 2;
+const LIQ_TOKEN_A: u32 = 11;
+const LIQ_TOKEN_B: u32 = 12;
 
-fn prepare_exchange<T>(asset_id: u64, liquidity_token_id: u64) -> DispatchResult
+fn prepare_exchange<T>(asset_id: u32, liquidity_token_id: u32) -> DispatchResult
 where
-    T: frame_system::Config<BlockNumber = u64>,
-    T: Config<AssetId = u64, AssetBalance = u64>,
-    T::Currency: Currency<AccountIdOf<T>, Balance = u64>,
+    T: frame_system::Config<BlockNumber = u32>,
+    T: Config<AssetId = u32, AssetBalance = u128>,
+    T::Currency: Currency<AccountIdOf<T>, Balance = u128>,
     T::Assets: Create<AccountIdOf<T>> + Mutate<AccountIdOf<T>>,
 {
     let caller: T::AccountId = whitelisted_caller();
@@ -38,9 +38,9 @@ where
 benchmarks! {
     where_clause {
         where
-            T: frame_system::Config<BlockNumber = u64>,
-            T: Config<AssetId = u64, AssetBalance = u64>,
-            T::Currency: Currency<AccountIdOf<T>, Balance = u64>,
+            T: frame_system::Config<BlockNumber = u32>,
+            T: Config<AssetId = u32, AssetBalance = u128>,
+            T::Currency: Currency<AccountIdOf<T>, Balance = u128>,
             T::Assets: Create<AccountIdOf<T>> + Mutate<AccountIdOf<T>>,
     }
 
