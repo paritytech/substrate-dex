@@ -72,7 +72,11 @@ pub mod pallet {
         type Currency: Currency<Self::AccountId>;
 
         /// The balance type for assets (i.e. tokens).
-        type AssetBalance: Balance + MaxEncodedLen + FixedPointOperand;
+        type AssetBalance: Balance
+            + FixedPointOperand
+            + MaxEncodedLen
+            + MaybeSerializeDeserialize
+            + TypeInfo;
 
         // Two-way conversion between asset and currency balances
         type AssetToCurrencyBalance: Convert<Self::AssetBalance, BalanceOf<Self>>;
@@ -142,6 +146,95 @@ pub mod pallet {
             Self::ProviderFeeDenominator::get()
                 .checked_sub(&Self::ProviderFeeNumerator::get())
                 .expect("Provider fee shouldn't be greater than 100%")
+        }
+    }
+
+    type GenesisExchangeInfo<T> =
+        (AccountIdOf<T>, AssetIdOf<T>, AssetIdOf<T>, BalanceOf<T>, AssetBalanceOf<T>);
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        pub exchanges: Vec<GenesisExchangeInfo<T>>,
+    }
+
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> GenesisConfig<T> {
+            GenesisConfig { exchanges: vec![] }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            let pallet_account = T::pallet_account();
+            for (provider, asset_id, liquidity_token_id, currency_amount, token_amount) in
+                &self.exchanges
+            {
+                // ----------------------- Create liquidity token ----------------------
+                assert!(!<Exchanges<T>>::contains_key(asset_id), "Exchange already created");
+                assert!(
+                    T::AssetRegistry::create(
+                        liquidity_token_id.clone(),
+                        pallet_account.clone(),
+                        false,
+                        <AssetBalanceOf<T>>::one(),
+                    )
+                    .is_ok(),
+                    "Liquidity token id already in use"
+                );
+
+                // -------------------------- Update storage ---------------------------
+                let mut exchange = Exchange {
+                    asset_id: asset_id.clone(),
+                    currency_reserve: <BalanceOf<T>>::zero(),
+                    token_reserve: <AssetBalanceOf<T>>::zero(),
+                    liquidity_token_id: liquidity_token_id.clone(),
+                };
+
+                let liquidity_minted = T::currency_to_asset(*currency_amount);
+
+                // --------------------- Currency & token transfer ---------------------
+                assert!(
+                    <T as pallet::Config>::Currency::transfer(
+                        provider,
+                        &pallet_account,
+                        *currency_amount,
+                        ExistenceRequirement::KeepAlive,
+                    )
+                    .is_ok(),
+                    "Provider does not have enough amount of currency"
+                );
+
+                assert!(
+                    T::Assets::transfer(
+                        asset_id.clone(),
+                        provider,
+                        &pallet_account,
+                        *token_amount,
+                        true,
+                    )
+                    .is_ok(),
+                    "Provider does not have enough amount of asset tokens"
+                );
+
+                assert!(
+                    T::AssetRegistry::mint_into(
+                        liquidity_token_id.clone(),
+                        provider,
+                        liquidity_minted
+                    )
+                    .is_ok(),
+                    "Unexpected error while minting liquidity tokens for Provider"
+                );
+
+                // -------------------------- Balances update --------------------------
+                exchange
+                    .currency_reserve
+                    .saturating_accrue(*currency_amount);
+                exchange.token_reserve.saturating_accrue(*token_amount);
+                <Exchanges<T>>::insert(asset_id.clone(), exchange);
+            }
         }
     }
 
