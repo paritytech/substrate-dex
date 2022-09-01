@@ -114,6 +114,7 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
     let mut storage = frame_system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
+
     pallet_balances::GenesisConfig::<Test> {
         balances: vec![
             (ACCOUNT_A, INIT_BALANCE),
@@ -123,6 +124,7 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
     }
     .assimilate_storage(&mut storage)
     .unwrap();
+
     pallet_assets::GenesisConfig::<Test> {
         assets: vec![(ASSET_A, ACCOUNT_A, true, 1), (ASSET_B, ACCOUNT_B, true, 1)],
         metadata: vec![],
@@ -137,18 +139,15 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
     }
     .assimilate_storage(&mut storage)
     .unwrap();
+
+    dex::GenesisConfig::<Test> {
+        exchanges: vec![(ACCOUNT_A, ASSET_A, LIQ_TOKEN_A, INIT_LIQUIDITY, INIT_LIQUIDITY)],
+    }
+    .assimilate_storage(&mut storage)
+    .unwrap();
+
     let mut test_ext: sp_io::TestExternalities = storage.into();
     test_ext.execute_with(|| System::set_block_number(1));
-    test_ext.execute_with(|| {
-        Dex::create_exchange(
-            Origin::signed(ACCOUNT_A),
-            ASSET_A,
-            LIQ_TOKEN_A,
-            INIT_LIQUIDITY,
-            INIT_LIQUIDITY,
-        )
-        .unwrap()
-    });
     test_ext
 }
 
