@@ -33,7 +33,7 @@ TBA
 ## Configuration
 
 ### Types
-* `Event` – The overarching event type.
+* `RuntimeEvent` – The overarching event type.
 * `Currency` – The currency type.
 * `AssetBalance` – The balance type for assets.
 * `AssetToCurrencyBalance` – A type providing conversion from the asset balance type to the currency balance type.
@@ -344,7 +344,7 @@ pub type AssetBalance = Balance;
 pub type AssetId = u32;
 
 impl pallet_assets::Config for Runtime {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type Balance = AssetBalance;
     type AssetId = AssetId;
     type Currency = Balances;
@@ -370,7 +370,7 @@ parameter_types! {
 
 impl pallet_dex::Config for Runtime {
     type PalletId = DexPalletId;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type AssetBalance = AssetBalance;
     type AssetToCurrencyBalance = Identity;
@@ -437,7 +437,7 @@ impl_runtime_apis! {
 ```
 
 ### Node's `chain_spec.rs`
-Add genesis configuration for assets pallet.
+Add genesis configuration for assets and dex pallets.
 ```rust
 fn testnet_genesis(
     wasm_binary: &[u8],
@@ -453,6 +453,9 @@ fn testnet_genesis(
             accounts: vec![],
             metadata: vec![],
         },
+        dex: DexConfig {
+            exchanges: vec![],
+        }
     }
 }
 ```
