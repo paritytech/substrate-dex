@@ -9,7 +9,13 @@ use frame_support::{
 #[test]
 fn create_exchange() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Dex::create_exchange(RuntimeOrigin::signed(ACCOUNT_A), ASSET_B, LIQ_TOKEN_B, 1, 1));
+        assert_ok!(Dex::create_exchange(
+            RuntimeOrigin::signed(ACCOUNT_A),
+            ASSET_B,
+            LIQ_TOKEN_B,
+            1,
+            1
+        ));
         let exchange = Dex::exchanges(ASSET_B).unwrap();
         assert_eq!(exchange.asset_id, ASSET_B);
         assert_eq!(exchange.currency_reserve, 1);
@@ -84,7 +90,14 @@ fn create_exchange_token_id_taken() {
 #[test]
 fn add_liquidity() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Dex::add_liquidity(RuntimeOrigin::signed(ACCOUNT_B), ASSET_A, 1_000, 1_000, 1_001, 1,));
+        assert_ok!(Dex::add_liquidity(
+            RuntimeOrigin::signed(ACCOUNT_B),
+            ASSET_A,
+            1_000,
+            1_000,
+            1_001,
+            1,
+        ));
 
         let exchange = Dex::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, INIT_LIQUIDITY + 1_000);
@@ -230,7 +243,14 @@ fn add_liquidity_min_liquidity_too_high() {
 #[test]
 fn remove_liquidity() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Dex::remove_liquidity(RuntimeOrigin::signed(ACCOUNT_A), ASSET_A, 500, 500, 500, 1,));
+        assert_ok!(Dex::remove_liquidity(
+            RuntimeOrigin::signed(ACCOUNT_A),
+            ASSET_A,
+            500,
+            500,
+            500,
+            1,
+        ));
         let exchange = Dex::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, INIT_LIQUIDITY - 500);
         assert_eq!(exchange.token_reserve, INIT_LIQUIDITY - 500);
