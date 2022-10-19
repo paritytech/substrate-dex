@@ -53,53 +53,53 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: System Account (r:1 w:1)
 	// Storage: Assets Account (r:3 w:3)
 	fn create_exchange() -> Weight {
-		(103_019_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(7 as Weight))
-			.saturating_add(T::DbWeight::get().writes(7 as Weight))
+		Weight::from_ref_time(103_019_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(7 as u64))
+			.saturating_add(T::DbWeight::get().writes(7 as u64))
 	}
 	// Storage: Assets Asset (r:2 w:2)
 	// Storage: Assets Account (r:3 w:3)
 	// Storage: Dex Exchanges (r:1 w:1)
 	// Storage: System Account (r:1 w:1)
 	fn add_liquidity() -> Weight {
-		(89_032_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(7 as Weight))
-			.saturating_add(T::DbWeight::get().writes(7 as Weight))
+		Weight::from_ref_time(89_032_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(7 as u64))
+			.saturating_add(T::DbWeight::get().writes(7 as u64))
 	}
 	// Storage: Dex Exchanges (r:1 w:1)
 	// Storage: Assets Asset (r:2 w:2)
 	// Storage: Assets Account (r:3 w:3)
 	// Storage: System Account (r:1 w:1)
 	fn remove_liquidity() -> Weight {
-		(88_652_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(7 as Weight))
-			.saturating_add(T::DbWeight::get().writes(7 as Weight))
+		Weight::from_ref_time(88_652_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(7 as u64))
+			.saturating_add(T::DbWeight::get().writes(7 as u64))
 	}
 	// Storage: Dex Exchanges (r:1 w:1)
 	// Storage: System Account (r:1 w:1)
 	// Storage: Assets Asset (r:1 w:1)
 	// Storage: Assets Account (r:2 w:2)
 	fn currency_to_asset() -> Weight {
-		(70_294_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(5 as Weight))
-			.saturating_add(T::DbWeight::get().writes(5 as Weight))
+		Weight::from_ref_time(70_294_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(5 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
 	// Storage: Dex Exchanges (r:1 w:1)
 	// Storage: Assets Asset (r:1 w:1)
 	// Storage: Assets Account (r:2 w:2)
 	// Storage: System Account (r:1 w:1)
 	fn asset_to_currency() -> Weight {
-		(72_349_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(5 as Weight))
-			.saturating_add(T::DbWeight::get().writes(5 as Weight))
+		Weight::from_ref_time(72_349_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(5 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
 	// Storage: Dex Exchanges (r:2 w:2)
 	// Storage: Assets Asset (r:2 w:2)
 	// Storage: Assets Account (r:4 w:4)
 	fn asset_to_asset() -> Weight {
-		(99_152_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(8 as Weight))
-			.saturating_add(T::DbWeight::get().writes(8 as Weight))
+		Weight::from_ref_time(99_152_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(8 as u64))
+			.saturating_add(T::DbWeight::get().writes(8 as u64))
 	}
 }
 
@@ -110,52 +110,52 @@ impl WeightInfo for () {
 	// Storage: System Account (r:1 w:1)
 	// Storage: Assets Account (r:3 w:3)
 	fn create_exchange() -> Weight {
-		(103_019_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(7 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(7 as Weight))
+		Weight::from_ref_time(103_019_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(7 as u64))
+			.saturating_add(RocksDbWeight::get().writes(7 as u64))
 	}
 	// Storage: Assets Asset (r:2 w:2)
 	// Storage: Assets Account (r:3 w:3)
 	// Storage: Dex Exchanges (r:1 w:1)
 	// Storage: System Account (r:1 w:1)
 	fn add_liquidity() -> Weight {
-		(89_032_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(7 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(7 as Weight))
+		Weight::from_ref_time(89_032_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(7 as u64))
+			.saturating_add(RocksDbWeight::get().writes(7 as u64))
 	}
 	// Storage: Dex Exchanges (r:1 w:1)
 	// Storage: Assets Asset (r:2 w:2)
 	// Storage: Assets Account (r:3 w:3)
 	// Storage: System Account (r:1 w:1)
 	fn remove_liquidity() -> Weight {
-		(88_652_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(7 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(7 as Weight))
+		Weight::from_ref_time(88_652_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(7 as u64))
+			.saturating_add(RocksDbWeight::get().writes(7 as u64))
 	}
 	// Storage: Dex Exchanges (r:1 w:1)
 	// Storage: System Account (r:1 w:1)
 	// Storage: Assets Asset (r:1 w:1)
 	// Storage: Assets Account (r:2 w:2)
 	fn currency_to_asset() -> Weight {
-		(70_294_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(5 as Weight))
+		Weight::from_ref_time(70_294_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(5 as u64))
+			.saturating_add(RocksDbWeight::get().writes(5 as u64))
 	}
 	// Storage: Dex Exchanges (r:1 w:1)
 	// Storage: Assets Asset (r:1 w:1)
 	// Storage: Assets Account (r:2 w:2)
 	// Storage: System Account (r:1 w:1)
 	fn asset_to_currency() -> Weight {
-		(72_349_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(5 as Weight))
+		Weight::from_ref_time(72_349_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(5 as u64))
+			.saturating_add(RocksDbWeight::get().writes(5 as u64))
 	}
 	// Storage: Dex Exchanges (r:2 w:2)
 	// Storage: Assets Asset (r:2 w:2)
 	// Storage: Assets Account (r:4 w:4)
 	fn asset_to_asset() -> Weight {
-		(99_152_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(8 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(8 as Weight))
+		Weight::from_ref_time(99_152_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(8 as u64))
+			.saturating_add(RocksDbWeight::get().writes(8 as u64))
 	}
 }
