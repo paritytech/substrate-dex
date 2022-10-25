@@ -16,25 +16,14 @@ const EXCHANGE_NOT_FOUND_MESSAGE: &str = "Exchange not found";
 const NOT_ENOUGH_LIQUIDITY_MESSAGE: &str = "Not enough liquidity";
 const OVERFLOW_MESSAGE: &str = "Overflow";
 const RUNTIME_ERROR_MESSAGE: &str = "Runtime error";
+const DATA: [u8; 15] = [
+    117, 110, 101, 120, 112, 101, 99, 116, 101, 100, 32, 100, 97, 116, 97,
+];
 
-fn assert_exchange_not_found(error: Error) {
+fn assert(error: Error, code: i32, message: &str, data: Option<&[u8]>) {
     assert!(matches!(error, Error::Call(e) if matches!(&e, CallError::Custom(e)
-        if e.code() == EXCHANGE_NOT_FOUND && e.message() == EXCHANGE_NOT_FOUND_MESSAGE && e.data().is_none())));
-}
-
-fn assert_not_enough_liquidity(error: Error) {
-    assert!(matches!(error, Error::Call(e) if matches!(&e, CallError::Custom(e)
-        if e.code() == NOT_ENOUGH_LIQUIDITY && e.message() == NOT_ENOUGH_LIQUIDITY_MESSAGE && e.data().is_none())));
-}
-
-fn assert_overflow(error: Error) {
-    assert!(matches!(error, Error::Call(e) if matches!(&e, CallError::Custom(e)
-        if e.code() == OVERFLOW && e.message() == OVERFLOW_MESSAGE && e.data().is_none())));
-}
-
-fn assert_unexpected(error: Error) {
-    assert!(matches!(error, Error::Call(e) if matches!(&e, CallError::Custom(e)
-        if e.code() == RUNTIME_ERROR && e.message() == RUNTIME_ERROR_MESSAGE && e.data().is_some())));
+    if e.code() == code && e.message() == message &&
+        e.data().map(|v| v.get().to_string()) == data.map(|d| format!("{:?}", d).replace(' ', "")))));
 }
 
 #[tokio::test]
@@ -51,7 +40,7 @@ async fn get_currency_to_asset_input_price_with_exchange_not_found() {
         .get_currency_to_asset_input_price(ASSET, CURRENCY_AMOUNT, None)
         .unwrap_err();
 
-    assert_exchange_not_found(error)
+    assert(error, EXCHANGE_NOT_FOUND, EXCHANGE_NOT_FOUND_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -68,7 +57,7 @@ async fn get_currency_to_asset_input_price_with_not_enough_liquidity() {
         .get_currency_to_asset_input_price(ASSET, CURRENCY_AMOUNT, None)
         .unwrap_err();
 
-    assert_not_enough_liquidity(error)
+    assert(error, NOT_ENOUGH_LIQUIDITY, NOT_ENOUGH_LIQUIDITY_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -82,7 +71,7 @@ async fn get_currency_to_asset_input_price_with_overflow() {
         .get_currency_to_asset_input_price(ASSET, CURRENCY_AMOUNT, None)
         .unwrap_err();
 
-    assert_overflow(error)
+    assert(error, OVERFLOW, OVERFLOW_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -90,7 +79,7 @@ async fn get_currency_to_asset_input_price_with_unexpected() {
     let expectation = Expectation::GetCurrencyToAssetInputPrice(
         ASSET,
         CURRENCY_AMOUNT,
-        Err(RpcError::Unexpected("unexpected asset".as_bytes().into())),
+        Err(RpcError::Unexpected(DATA.into())),
     );
     let client = Arc::new(TestApi::new(expectation));
     let api = Dex::new(client);
@@ -99,7 +88,7 @@ async fn get_currency_to_asset_input_price_with_unexpected() {
         .get_currency_to_asset_input_price(ASSET, CURRENCY_AMOUNT, None)
         .unwrap_err();
 
-    assert_unexpected(error)
+    assert(error, RUNTIME_ERROR, RUNTIME_ERROR_MESSAGE, Some(&DATA))
 }
 
 #[tokio::test]
@@ -130,7 +119,7 @@ async fn get_currency_to_asset_output_price_with_exchange_not_found() {
         .get_currency_to_asset_output_price(ASSET, TOKEN_AMOUNT, None)
         .unwrap_err();
 
-    assert_exchange_not_found(error)
+    assert(error, EXCHANGE_NOT_FOUND, EXCHANGE_NOT_FOUND_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -147,7 +136,7 @@ async fn get_currency_to_asset_output_price_with_not_enough_liquidity() {
         .get_currency_to_asset_output_price(ASSET, TOKEN_AMOUNT, None)
         .unwrap_err();
 
-    assert_not_enough_liquidity(error)
+    assert(error, NOT_ENOUGH_LIQUIDITY, NOT_ENOUGH_LIQUIDITY_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -161,7 +150,7 @@ async fn get_currency_to_asset_output_price_with_overflow() {
         .get_currency_to_asset_output_price(ASSET, TOKEN_AMOUNT, None)
         .unwrap_err();
 
-    assert_overflow(error)
+    assert(error, OVERFLOW, OVERFLOW_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -169,7 +158,7 @@ async fn get_currency_to_asset_output_price_with_unexpected() {
     let expectation = Expectation::GetCurrencyToAssetOutputPrice(
         ASSET,
         TOKEN_AMOUNT,
-        Err(RpcError::Unexpected("unexpected asset".as_bytes().into())),
+        Err(RpcError::Unexpected(DATA.into())),
     );
     let client = Arc::new(TestApi::new(expectation));
     let api = Dex::new(client);
@@ -178,7 +167,7 @@ async fn get_currency_to_asset_output_price_with_unexpected() {
         .get_currency_to_asset_output_price(ASSET, TOKEN_AMOUNT, None)
         .unwrap_err();
 
-    assert_unexpected(error)
+    assert(error, RUNTIME_ERROR, RUNTIME_ERROR_MESSAGE, Some(&DATA))
 }
 
 #[tokio::test]
@@ -209,7 +198,7 @@ async fn get_asset_to_currency_input_price_with_exchange_not_found() {
         .get_asset_to_currency_input_price(ASSET, TOKEN_AMOUNT, None)
         .unwrap_err();
 
-    assert_exchange_not_found(error)
+    assert(error, EXCHANGE_NOT_FOUND, EXCHANGE_NOT_FOUND_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -226,7 +215,7 @@ async fn get_asset_to_currency_input_price_with_not_enough_liquidity() {
         .get_asset_to_currency_input_price(ASSET, TOKEN_AMOUNT, None)
         .unwrap_err();
 
-    assert_not_enough_liquidity(error)
+    assert(error, NOT_ENOUGH_LIQUIDITY, NOT_ENOUGH_LIQUIDITY_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -240,7 +229,7 @@ async fn get_asset_to_currency_input_price_with_overflow() {
         .get_asset_to_currency_input_price(ASSET, TOKEN_AMOUNT, None)
         .unwrap_err();
 
-    assert_overflow(error)
+    assert(error, OVERFLOW, OVERFLOW_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -248,7 +237,7 @@ async fn get_asset_to_currency_input_price_with_unexpected() {
     let expectation = Expectation::GetAssetToCurrencyInputPrice(
         ASSET,
         TOKEN_AMOUNT,
-        Err(RpcError::Unexpected("unexpected asset".as_bytes().into())),
+        Err(RpcError::Unexpected(DATA.into())),
     );
     let client = Arc::new(TestApi::new(expectation));
     let api = Dex::new(client);
@@ -257,7 +246,7 @@ async fn get_asset_to_currency_input_price_with_unexpected() {
         .get_asset_to_currency_input_price(ASSET, TOKEN_AMOUNT, None)
         .unwrap_err();
 
-    assert_unexpected(error)
+    assert(error, RUNTIME_ERROR, RUNTIME_ERROR_MESSAGE, Some(&DATA))
 }
 
 #[tokio::test]
@@ -288,7 +277,7 @@ async fn get_asset_to_currency_output_price_with_exchange_not_found() {
         .get_asset_to_currency_output_price(ASSET, CURRENCY_AMOUNT, None)
         .unwrap_err();
 
-    assert_exchange_not_found(error)
+    assert(error, EXCHANGE_NOT_FOUND, EXCHANGE_NOT_FOUND_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -305,7 +294,7 @@ async fn get_asset_to_currency_output_price_with_not_enough_liquidity() {
         .get_asset_to_currency_output_price(ASSET, CURRENCY_AMOUNT, None)
         .unwrap_err();
 
-    assert_not_enough_liquidity(error)
+    assert(error, NOT_ENOUGH_LIQUIDITY, NOT_ENOUGH_LIQUIDITY_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -319,7 +308,7 @@ async fn get_asset_to_currency_output_price_with_overflow() {
         .get_asset_to_currency_output_price(ASSET, CURRENCY_AMOUNT, None)
         .unwrap_err();
 
-    assert_overflow(error)
+    assert(error, OVERFLOW, OVERFLOW_MESSAGE, None)
 }
 
 #[tokio::test]
@@ -327,7 +316,7 @@ async fn get_asset_to_currency_output_price_with_unexpected() {
     let expectation = Expectation::GetAssetToCurrencyOutputPrice(
         ASSET,
         CURRENCY_AMOUNT,
-        Err(RpcError::Unexpected("unexpected asset".as_bytes().into())),
+        Err(RpcError::Unexpected(DATA.into())),
     );
     let client = Arc::new(TestApi::new(expectation));
     let api = Dex::new(client);
@@ -336,7 +325,7 @@ async fn get_asset_to_currency_output_price_with_unexpected() {
         .get_asset_to_currency_output_price(ASSET, CURRENCY_AMOUNT, None)
         .unwrap_err();
 
-    assert_unexpected(error)
+    assert(error, RUNTIME_ERROR, RUNTIME_ERROR_MESSAGE, Some(&DATA))
 }
 
 #[tokio::test]
@@ -409,22 +398,21 @@ mod mock {
         fn status(
             &self,
             _id: BlockId<Block>,
-        ) -> std::result::Result<sc_client_api::blockchain::BlockStatus, sp_blockchain::Error>
-        {
+        ) -> Result<sc_client_api::blockchain::BlockStatus, sp_blockchain::Error> {
             Ok(sc_client_api::blockchain::BlockStatus::Unknown)
         }
 
         fn number(
             &self,
             _hash: Block::Hash,
-        ) -> std::result::Result<Option<NumberFor<Block>>, sp_blockchain::Error> {
+        ) -> Result<Option<NumberFor<Block>>, sp_blockchain::Error> {
             Ok(None)
         }
 
         fn hash(
             &self,
             _number: NumberFor<Block>,
-        ) -> std::result::Result<Option<Block::Hash>, sp_blockchain::Error> {
+        ) -> Result<Option<Block::Hash>, sp_blockchain::Error> {
             Ok(None)
         }
     }
