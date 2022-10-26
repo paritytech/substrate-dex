@@ -33,7 +33,7 @@ TBA
 ## Configuration
 
 ### Types
-* `Event` – The overarching event type.
+* `RuntimeEvent` – The overarching event type.
 * `Currency` – The currency type.
 * `AssetBalance` – The balance type for assets.
 * `AssetToCurrencyBalance` – A type providing conversion from the asset balance type to the currency balance type.
@@ -277,10 +277,10 @@ i.e. 'How much asset do I have to pay to get this much currency'?
 ## How to add `pallet-dex` to a node
 
 :information_source: The pallet is compatible with Substrate version
-[polkadot-v0.9.28](https://github.com/paritytech/substrate/tree/polkadot-v0.9.28).
+[polkadot-v0.9.30](https://github.com/paritytech/substrate/tree/polkadot-v0.9.30).
 
 :information_source: This section is based on
-[Substrate node template](https://github.com/substrate-developer-hub/substrate-node-template/tree/polkadot-v0.9.28).
+[Substrate node template](https://github.com/substrate-developer-hub/substrate-node-template/tree/polkadot-v0.9.30).
 Integrating `pallet-dex` with another node might look slightly different.
 
 ### Runtime's `Cargo.toml`
@@ -291,7 +291,7 @@ Add `pallet-dex`, the RPC runtime API, and `pallet-assets` (required for handlin
 version = "4.0.0-dev"
 default-features = false
 git = "https://github.com/paritytech/substrate.git"
-branch = "polkadot-v0.9.28"
+branch = "polkadot-v0.9.30"
 
 [dependencies.pallet-dex]
 version = "0.0.1"
@@ -344,7 +344,7 @@ pub type AssetBalance = Balance;
 pub type AssetId = u32;
 
 impl pallet_assets::Config for Runtime {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type Balance = AssetBalance;
     type AssetId = AssetId;
     type Currency = Balances;
@@ -370,7 +370,7 @@ parameter_types! {
 
 impl pallet_dex::Config for Runtime {
     type PalletId = DexPalletId;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type AssetBalance = AssetBalance;
     type AssetToCurrencyBalance = Identity;
@@ -437,7 +437,7 @@ impl_runtime_apis! {
 ```
 
 ### Node's `chain_spec.rs`
-Add genesis configuration for assets pallet.
+Add genesis configuration for assets and dex pallets.
 ```rust
 fn testnet_genesis(
     wasm_binary: &[u8],
@@ -453,6 +453,9 @@ fn testnet_genesis(
             accounts: vec![],
             metadata: vec![],
         },
+        dex: DexConfig {
+            exchanges: vec![],
+        }
     }
 }
 ```
