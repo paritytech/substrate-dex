@@ -19,6 +19,9 @@ const EXCHANGE_NOT_FOUND: i32 = 2;
 const NOT_ENOUGH_LIQUIDITY: i32 = 3;
 const OVERFLOW: i32 = 4;
 
+#[cfg(test)]
+mod tests;
+
 #[rpc(client, server)]
 pub trait DexApi<BlockHash, AssetId, Balance, AssetBalance> {
     #[method(name = "dex_get_currency_to_asset_input_price")]

@@ -17,12 +17,18 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      SKIP_WASM_BUILD: '1'
 
     steps:
-      - uses: actions/checkout@v1
-      - uses: icepuma/rust-action@master
+      - run: sudo apt update && sudo apt install --assume-yes cmake protobuf-compiler
+      - uses: actions-rs/toolchain@v1
         with:
-          args: >
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+      - uses: actions/checkout@v1
+      - run: >
             cargo fmt --all -- --check
             && cargo install cargo-sort
             && cargo sort --workspace --check --grouped

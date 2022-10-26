@@ -86,3 +86,164 @@ impl<T: Config> Pallet<T> {
         Ok(T::currency_to_asset(price))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::mock::*;
+    use crate::rpc::RpcError;
+    use crate::{AssetBalanceOf, AssetIdOf, BalanceOf, Exchange, Exchanges};
+    use frame_support::assert_noop;
+
+    #[test]
+    fn get_currency_to_asset_input_price_exchange_not_found() {
+        new_test_ext().execute_with(|| {
+            assert_noop!(
+                Dex::get_currency_to_asset_input_price(u32::MAX, 0),
+                RpcError::ExchangeNotFound
+            );
+        })
+    }
+
+    #[test]
+    fn get_currency_to_asset_input_price_overflow() {
+        new_test_ext().execute_with(|| {
+            assert_noop!(
+                Dex::get_currency_to_asset_input_price(ASSET_A, u128::MAX),
+                RpcError::Overflow
+            );
+        })
+    }
+
+    #[test]
+    fn get_currency_to_asset_input_price() {
+        new_test_ext().execute_with(|| {
+            assert_eq!(
+                996_999,
+                Dex::get_currency_to_asset_input_price(ASSET_A, 1_000_000).unwrap(),
+            );
+        })
+    }
+
+    #[test]
+    fn get_currency_to_asset_output_price_exchange_not_found() {
+        new_test_ext().execute_with(|| {
+            assert_noop!(
+                Dex::get_currency_to_asset_output_price(u32::MAX, 0),
+                RpcError::ExchangeNotFound
+            );
+        })
+    }
+
+    #[test]
+    fn get_currency_to_asset_output_price_not_enough_liquidity() {
+        new_test_ext().execute_with(|| {
+            assert_noop!(
+                Dex::get_currency_to_asset_output_price(ASSET_A, u128::MAX),
+                RpcError::NotEnoughLiquidity
+            );
+        })
+    }
+
+    #[test]
+    fn get_currency_to_asset_output_price_overflow() {
+        new_test_ext().execute_with(|| {
+            // Update exchange reserves to cause overflow
+            max_exchange_reserves(ASSET_A);
+            assert_noop!(Dex::get_currency_to_asset_output_price(ASSET_A, 1), RpcError::Overflow);
+        })
+    }
+
+    #[test]
+    fn get_currency_to_asset_output_price() {
+        new_test_ext().execute_with(|| {
+            assert_eq!(
+                1_003_011,
+                Dex::get_currency_to_asset_output_price(ASSET_A, 1_000_000).unwrap(),
+            );
+        })
+    }
+
+    #[test]
+    fn get_asset_to_currency_input_price_exchange_not_found() {
+        new_test_ext().execute_with(|| {
+            assert_noop!(
+                Dex::get_asset_to_currency_input_price(u32::MAX, 0),
+                RpcError::ExchangeNotFound
+            );
+        })
+    }
+
+    #[test]
+    fn get_asset_to_currency_input_price_overflow() {
+        new_test_ext().execute_with(|| {
+            assert_noop!(
+                Dex::get_asset_to_currency_input_price(ASSET_A, u128::MAX),
+                RpcError::Overflow
+            );
+        })
+    }
+
+    #[test]
+    fn get_asset_to_currency_input_price() {
+        new_test_ext().execute_with(|| {
+            assert_eq!(
+                996_999,
+                Dex::get_asset_to_currency_input_price(ASSET_A, 1_000_000).unwrap(),
+            );
+        })
+    }
+
+    #[test]
+    fn get_asset_to_currency_output_price_exchange_not_found() {
+        new_test_ext().execute_with(|| {
+            assert_noop!(
+                Dex::get_asset_to_currency_output_price(u32::MAX, 0),
+                RpcError::ExchangeNotFound
+            );
+        })
+    }
+
+    #[test]
+    fn get_asset_to_currency_output_price_not_enough_liquidity() {
+        new_test_ext().execute_with(|| {
+            assert_noop!(
+                Dex::get_asset_to_currency_output_price(ASSET_A, u128::MAX),
+                RpcError::NotEnoughLiquidity
+            );
+        })
+    }
+
+    #[test]
+    fn get_asset_to_currency_output_price_overflow() {
+        new_test_ext().execute_with(|| {
+            // Update exchange reserves to cause overflow
+            max_exchange_reserves(ASSET_A);
+            assert_noop!(
+                Dex::get_asset_to_currency_output_price(ASSET_A, INIT_LIQUIDITY - 1),
+                RpcError::Overflow
+            );
+        })
+    }
+
+    #[test]
+    fn get_asset_to_currency_output_price() {
+        new_test_ext().execute_with(|| {
+            assert_eq!(
+                1_003_011,
+                Dex::get_asset_to_currency_output_price(ASSET_A, 1_000_000).unwrap(),
+            );
+        })
+    }
+
+    fn max_exchange_reserves(asset_id: AssetIdOf<Test>) {
+        Exchanges::<Test>::insert(
+            asset_id,
+            Exchange::<AssetIdOf<Test>, BalanceOf<Test>, AssetBalanceOf<Test>> {
+                asset_id,
+                currency_reserve: u128::MAX,
+                token_reserve: u128::MAX,
+                liquidity_token_id: LIQ_TOKEN_A,
+            },
+        );
+    }
+}
