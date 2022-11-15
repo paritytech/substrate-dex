@@ -43,7 +43,7 @@ pub mod pallet {
                 AccountIdConversion, CheckedAdd, CheckedMul, CheckedSub, Convert, One, Saturating,
                 Zero,
             },
-            FixedPointNumber, FixedPointOperand, FixedU128,
+            FixedPointNumber, FixedPointOperand, FixedU128, SaturatedConversion,
         },
         traits::{
             fungibles::{Create, Destroy, Inspect, Mutate, Transfer},
@@ -54,6 +54,12 @@ pub mod pallet {
     };
     use frame_system::pallet_prelude::*;
     use sp_std::fmt::Debug;
+    use xcm::latest::{
+        AssetId as XcmAssetId, Fungibility,
+        Junction::{GeneralIndex, PalletInstance},
+        Junctions, MultiAsset, MultiAssets, MultiLocation, WildFungibility,
+    };
+    use xcm_executor::{traits::AssetExchange, Assets as XcmAssets};
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
@@ -90,11 +96,13 @@ pub mod pallet {
             + Debug
             + PartialEq
             + EncodeLike
-            + Decode;
+            + Decode
+            + From<u32>;
 
         /// The type for tradable assets.
         type Assets: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>
-            + Transfer<Self::AccountId>;
+            + Transfer<Self::AccountId>
+            + Mutate<Self::AccountId>;
 
         /// The type for liquidity tokens.
         type AssetRegistry: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>
@@ -1163,6 +1171,175 @@ pub mod pallet {
                 pallet_account,
                 recipient,
             )
+        }
+    }
+
+    impl<T: Config> AssetExchange for Pallet<T> {
+        /// https://github.com/paritytech/polkadot/blob/gav-xcm-v3/xcm/xcm-executor/src/traits/asset_exchange.rs
+        /// Handler for exchanging an asset.
+        ///
+        /// - `origin`: The location attempting the exchange; this should generally not matter.
+        /// - `give`: The assets which have been removed from the caller.
+        /// - `want`: The minimum amount of assets which should be given to the caller in case any
+        ///   exchange happens. If more assets are provided, then they should generally be of the
+        ///   same asset class if at all possible.
+        /// - `maximal`: If `true`, then as much as possible should be exchanged.
+        ///
+        /// `Ok` is returned along with the new set of assets which have been exchanged for `give`. At
+        /// least want must be in the set. Some assets originally in `give` may also be in this set. In
+        /// the case of returning an `Err`, then `give` is returned.
+        fn exchange_asset(
+            _origin: Option<&MultiLocation>,
+            give: XcmAssets,
+            want: &MultiAssets,
+            maximal: bool,
+        ) -> Result<XcmAssets, XcmAssets> {
+            // -------------------------- Validation --------------------------
+            let want_nfts: Vec<&MultiAsset> = want
+                .inner()
+                .into_iter()
+                .filter(|w| w.fun.is_kind(WildFungibility::NonFungible))
+                .collect();
+
+            // NFTs are not supported
+            if !(give.non_fungible.is_empty() && want_nfts.is_empty()) {
+                return Err(give);
+            }
+
+            // only one swap supported at a time (no more than 2 assets on give or want)
+            if give.fungible.len() > 1 || want.inner().len() > 1 {
+                return Err(give);
+            }
+
+            // -------------------------- Parsing Assets --------------------------
+            let give_asset_id: &XcmAssetId = give.fungible.keys().next().ok_or(give.clone())?; // first item from iterator
+            let give_amount: &u128 = give.fungible.get(give_asset_id).ok_or(give.clone())?;
+            let give_asset_multi_location: &MultiLocation = match give_asset_id {
+                XcmAssetId::Concrete(multi_location) => multi_location,
+                _ => return Err(give),
+            };
+
+            let want_asset: &MultiAsset = &want.clone().into_inner()[0]; // first item from vec
+            let want_asset_id: XcmAssetId = want_asset.id;
+            let want_amount: u128 = match want_asset.fun {
+                Fungibility::Fungible(amount) => amount,
+                _ => return Err(give),
+            };
+            let want_asset_multi_location: MultiLocation = match want_asset_id {
+                XcmAssetId::Concrete(multi_location) => multi_location,
+                _ => return Err(give),
+            };
+
+            // -------------------------- Swap --------------------------
+
+            let give_currency = give_asset_multi_location.parents == 0
+                && matches!(give_asset_multi_location.interior, Junctions::Here);
+            let want_currency = want_asset_multi_location.parents == 0
+                && matches!(want_asset_multi_location.interior, Junctions::Here);
+
+            if give_currency && !want_currency {
+                match want_asset_multi_location {
+                    MultiLocation {
+                        parents: 0,
+                        interior: Junctions::X2(PalletInstance(43), GeneralIndex(id)),
+                    } => {
+                        let asset_id: AssetIdOf<T> = (id as u32).into();
+                        let mut exchange = Self::get_exchange(&asset_id).or(Err(give.clone()))?;
+                        let (currency_amount, asset_amount) = match maximal {
+                            // give_amount is fixed input
+                            true => {
+                                let currency_amount =
+                                    give_amount.clone().saturated_into::<BalanceOf<T>>();
+
+                                let asset_amount = Self::get_input_price(
+                                    &currency_amount,
+                                    &exchange.currency_reserve,
+                                    &T::asset_to_currency(exchange.token_reserve),
+                                )
+                                .or(Err(give.clone()))?;
+
+                                // we want want_amount or more
+                                if asset_amount
+                                    > want_amount.clone().saturated_into::<BalanceOf<T>>()
+                                {
+                                    log::error!(target: "runtime::xcm", "asset_amount: {:?} > want_amount: {:?}", asset_amount, want_amount.clone().saturated_into::<BalanceOf<T>>());
+                                    return Err(give);
+                                }
+
+                                let asset_amount = T::currency_to_asset(asset_amount);
+                                (currency_amount, asset_amount)
+                            }
+                            // want_amount is fixed output
+                            false => {
+                                let asset_amount =
+                                    want_amount.clone().saturated_into::<BalanceOf<T>>();
+                                let currency_amount = Self::get_output_price(
+                                    &asset_amount,
+                                    &exchange.currency_reserve,
+                                    &T::asset_to_currency(exchange.token_reserve),
+                                )
+                                .or(Err(give.clone()))?;
+                                let give_amount =
+                                    give_amount.clone().saturated_into::<BalanceOf<T>>();
+
+                                // can give_amount pay for want_amount?
+                                if give_amount < currency_amount {
+                                    log::error!(target: "runtime::xcm", "give_amount: {:?} < currency_amount: {:?}", give_amount, currency_amount);
+                                    return Err(give);
+                                }
+
+                                let asset_amount = T::currency_to_asset(asset_amount);
+                                (currency_amount, asset_amount)
+                            }
+                        };
+
+                        let pallet_account = T::pallet_account();
+
+                        // currency balance transfer
+                        <T as pallet::Config>::Currency::deposit_into_existing(
+                            &pallet_account,
+                            currency_amount,
+                        )
+                        .or(Err(give.clone()))?;
+                        exchange.currency_reserve.saturating_accrue(currency_amount);
+
+                        // asset balance transfer
+                        <T as pallet::Config>::Assets::burn_from(
+                            asset_id.clone(),
+                            &pallet_account,
+                            asset_amount,
+                        )
+                        .or(Err(give.clone()))?;
+                        exchange.token_reserve.saturating_reduce(asset_amount);
+
+                        <Exchanges<T>>::insert(asset_id, exchange);
+
+                        let into_holding_register: XcmAssets = MultiAsset {
+                            id: want_asset_id,
+                            fun: Fungibility::Fungible(asset_amount.saturated_into::<u128>()),
+                        }
+                        .into();
+                        return Ok(into_holding_register);
+                    }
+                    _ => {
+                        return Err(give);
+                    }
+                };
+            } else if !give_currency && want_currency {
+                match give_asset_multi_location {
+                    MultiLocation {
+                        parents: 0,
+                        interior: Junctions::X2(PalletInstance(43), GeneralIndex(_)),
+                    } => {
+                        // todo
+                    }
+                    _ => return Err(give),
+                };
+            } else if !give_currency && !want_currency {
+                // todo
+            }
+
+            Err(give)
         }
     }
 }
