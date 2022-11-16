@@ -1206,7 +1206,7 @@ pub mod pallet {
                 return Err(give);
             }
 
-            // only one swap supported at a time (no more than 2 assets on give or want)
+            // only one swap supported at a time (no more than a single asset on give or want)
             if give.fungible.len() > 1 || want.inner().len() > 1 {
                 return Err(give);
             }
