@@ -1248,48 +1248,51 @@ pub mod pallet {
                         let (currency_amount, asset_amount) = match maximal {
                             // give_amount is fixed input
                             true => {
-                                let currency_amount =
-                                    give_amount.clone().saturated_into::<BalanceOf<T>>();
-
-                                let asset_amount = Self::get_input_price(
-                                    &currency_amount,
-                                    &exchange.currency_reserve,
-                                    &T::asset_to_currency(exchange.token_reserve),
-                                )
-                                .or(Err(give.clone()))?;
-
-                                // we want want_amount or more
-                                if asset_amount
-                                    > want_amount.clone().saturated_into::<BalanceOf<T>>()
-                                {
-                                    log::error!(target: "runtime::xcm", "asset_amount: {:?} > want_amount: {:?}", asset_amount, want_amount.clone().saturated_into::<BalanceOf<T>>());
-                                    return Err(give);
-                                }
-
-                                let asset_amount = T::currency_to_asset(asset_amount);
-                                (currency_amount, asset_amount)
-                            }
-                            // want_amount is fixed output
-                            false => {
-                                let asset_amount =
-                                    want_amount.clone().saturated_into::<BalanceOf<T>>();
-                                let currency_amount = Self::get_output_price(
-                                    &asset_amount,
-                                    &exchange.currency_reserve,
-                                    &T::asset_to_currency(exchange.token_reserve),
-                                )
-                                .or(Err(give.clone()))?;
                                 let give_amount =
                                     give_amount.clone().saturated_into::<BalanceOf<T>>();
 
-                                // can give_amount pay for want_amount?
-                                if give_amount < currency_amount {
-                                    log::error!(target: "runtime::xcm", "give_amount: {:?} < currency_amount: {:?}", give_amount, currency_amount);
+                                // how much can give_amount buy?
+                                let output_amount = Self::get_input_price(
+                                    &give_amount,
+                                    &exchange.currency_reserve,
+                                    &T::asset_to_currency(exchange.token_reserve),
+                                )
+                                .or(Err(give.clone()))?;
+
+                                // we want at least want_amount, or more
+                                if output_amount
+                                    < want_amount.clone().saturated_into::<BalanceOf<T>>()
+                                {
+                                    log::error!(target: "runtime::xcm", "output_amount: {:?} < want_amount: {:?}", output_amount, want_amount.clone().saturated_into::<BalanceOf<T>>());
                                     return Err(give);
                                 }
 
-                                let asset_amount = T::currency_to_asset(asset_amount);
-                                (currency_amount, asset_amount)
+                                let output_amount = T::currency_to_asset(output_amount);
+                                (give_amount, output_amount)
+                            }
+                            // want_amount is fixed output
+                            false => {
+                                let give_amount =
+                                    give_amount.clone().saturated_into::<BalanceOf<T>>();
+                                let want_amount =
+                                    want_amount.clone().saturated_into::<BalanceOf<T>>();
+
+                                // how much is needed to buy want_amount?
+                                let input_amount = Self::get_output_price(
+                                    &want_amount,
+                                    &exchange.currency_reserve,
+                                    &T::asset_to_currency(exchange.token_reserve),
+                                )
+                                .or(Err(give.clone()))?;
+
+                                // can give_amount pay for want_amount?
+                                if give_amount < input_amount {
+                                    log::error!(target: "runtime::xcm", "give_amount: {:?} < input_amount: {:?}", give_amount, input_amount);
+                                    return Err(give);
+                                }
+
+                                let want_amount = T::currency_to_asset(want_amount);
+                                (give_amount, want_amount)
                             }
                         };
 
