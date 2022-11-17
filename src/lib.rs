@@ -1245,7 +1245,7 @@ pub mod pallet {
                     } => {
                         let asset_id: AssetIdOf<T> = (id as u32).into();
                         let mut exchange = Self::get_exchange(&asset_id).or(Err(give.clone()))?;
-                        let (currency_amount, asset_amount) = match maximal {
+                        let (input_amount, output_amount) = match maximal {
                             // give_amount is fixed input
                             true => {
                                 let give_amount =
@@ -1301,25 +1301,25 @@ pub mod pallet {
                         // currency balance transfer
                         <T as pallet::Config>::Currency::deposit_into_existing(
                             &pallet_account,
-                            currency_amount,
+                            input_amount,
                         )
                         .or(Err(give.clone()))?;
-                        exchange.currency_reserve.saturating_accrue(currency_amount);
+                        exchange.currency_reserve.saturating_accrue(input_amount);
 
                         // asset balance transfer
                         <T as pallet::Config>::Assets::burn_from(
                             asset_id.clone(),
                             &pallet_account,
-                            asset_amount,
+                            output_amount,
                         )
                         .or(Err(give.clone()))?;
-                        exchange.token_reserve.saturating_reduce(asset_amount);
+                        exchange.token_reserve.saturating_reduce(output_amount);
 
                         <Exchanges<T>>::insert(asset_id, exchange);
 
                         let into_holding_register: XcmAssets = MultiAsset {
                             id: want_asset_id,
-                            fun: Fungibility::Fungible(asset_amount.saturated_into::<u128>()),
+                            fun: Fungibility::Fungible(output_amount.saturated_into::<u128>()),
                         }
                         .into();
                         return Ok(into_holding_register);
@@ -1332,9 +1332,84 @@ pub mod pallet {
                 match give_asset_multi_location {
                     MultiLocation {
                         parents: 0,
-                        interior: Junctions::X2(PalletInstance(43), GeneralIndex(_)),
+                        interior: Junctions::X2(PalletInstance(43), GeneralIndex(id)),
                     } => {
-                        // todo
+                        let asset_id: AssetIdOf<T> = (id.clone() as u32).into();
+                        let mut exchange = Self::get_exchange(&asset_id).or(Err(give.clone()))?;
+                        let (input_amount, output_amount) = match maximal {
+                            // give_amount is fixed input
+                            true => {
+                                let give_amount =
+                                    give_amount.clone().saturated_into::<BalanceOf<T>>();
+
+                                // how much can give_amount buy?
+                                let output_amount = Self::get_input_price(
+                                    &give_amount,
+                                    &T::asset_to_currency(exchange.token_reserve),
+                                    &exchange.currency_reserve,
+                                )
+                                .or(Err(give.clone()))?;
+
+                                // we want at least want_amount, or more
+                                if output_amount
+                                    < want_amount.clone().saturated_into::<BalanceOf<T>>()
+                                {
+                                    log::error!(target: "runtime::xcm", "output_amount: {:?} < want_amount: {:?}", output_amount, want_amount.clone().saturated_into::<BalanceOf<T>>());
+                                    return Err(give);
+                                }
+
+                                let give_amount = T::currency_to_asset(give_amount);
+                                (give_amount, output_amount)
+                            }
+                            // want_amount is fixed output
+                            false => {
+                                let give_amount =
+                                    give_amount.clone().saturated_into::<BalanceOf<T>>();
+                                let want_amount =
+                                    want_amount.clone().saturated_into::<BalanceOf<T>>();
+
+                                // how much is needed to buy want_amount?
+                                let input_amount = Self::get_output_price(
+                                    &want_amount,
+                                    &T::asset_to_currency(exchange.token_reserve),
+                                    &exchange.currency_reserve,
+                                )
+                                .or(Err(give.clone()))?;
+
+                                // can give_amount pay for want_amount?
+                                if give_amount < input_amount {
+                                    log::error!(target: "runtime::xcm", "give_amount: {:?} < input_amount: {:?}", give_amount, input_amount);
+                                    return Err(give);
+                                }
+
+                                let give_amount = T::currency_to_asset(give_amount);
+                                (give_amount, want_amount)
+                            }
+                        };
+
+                        let pallet_account = T::pallet_account();
+
+                        // asset balance transfer
+                        <T as pallet::Config>::Assets::mint_into(
+                            asset_id.clone(),
+                            &pallet_account,
+                            input_amount,
+                        )
+                        .or(Err(give.clone()))?;
+                        exchange.token_reserve.saturating_accrue(input_amount);
+
+                        // currency balance transfer
+                        <T as pallet::Config>::Currency::slash(&pallet_account, output_amount);
+                        exchange.currency_reserve.saturating_reduce(output_amount);
+
+                        <Exchanges<T>>::insert(asset_id, exchange);
+
+                        let into_holding_register: XcmAssets = MultiAsset {
+                            id: want_asset_id,
+                            fun: Fungibility::Fungible(output_amount.saturated_into::<u128>()),
+                        }
+                        .into();
+                        return Ok(into_holding_register);
                     }
                     _ => return Err(give),
                 };
