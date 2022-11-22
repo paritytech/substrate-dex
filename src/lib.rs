@@ -56,7 +56,7 @@ pub mod pallet {
     use sp_std::fmt::Debug;
     use xcm::latest::{
         AssetId as XcmAssetId, Fungibility,
-        Junction::{GeneralIndex, PalletInstance},
+        Junction::{GeneralIndex, PalletInstance, Parachain},
         Junctions, MultiAsset, MultiAssets, MultiLocation, WildFungibility,
     };
     use xcm_executor::{traits::AssetExchange, Assets as XcmAssets};
@@ -1240,10 +1240,19 @@ pub mod pallet {
             if give_currency && !want_currency {
                 match want_asset_multi_location {
                     MultiLocation {
-                        parents: 0,
-                        interior: Junctions::X2(PalletInstance(43), GeneralIndex(id)),
+                        parents: 1,
+                        interior:
+                            Junctions::X3(Parachain(1000), PalletInstance(50), GeneralIndex(1)),
                     } => {
-                        let asset_id: AssetIdOf<T> = (id as u32).into();
+                        // ------------------------------------
+                        // WARNING: very unsafe!
+                        // we are just assuming that txUSD has asset id 100
+                        // the correct way to set asset_id is to:
+                        // - couple this pallet with pallet_asset_registry
+                        // - call get_asset_id
+                        let asset_id: AssetIdOf<T> = 100u32.into();
+                        // ------------------------------------
+
                         let mut exchange = Self::get_exchange(&asset_id).or(Err(give.clone()))?;
                         let (input_amount, output_amount) = match maximal {
                             // give_amount is fixed input
@@ -1331,10 +1340,19 @@ pub mod pallet {
             } else if !give_currency && want_currency {
                 match give_asset_multi_location {
                     MultiLocation {
-                        parents: 0,
-                        interior: Junctions::X2(PalletInstance(43), GeneralIndex(id)),
+                        parents: 1,
+                        interior:
+                            Junctions::X3(Parachain(1000), PalletInstance(50), GeneralIndex(1)),
                     } => {
-                        let asset_id: AssetIdOf<T> = (id.clone() as u32).into();
+                        // ------------------------------------
+                        // WARNING: very unsafe!
+                        // we are just assuming that txUSD has asset id 100
+                        // the correct way to set asset_id is to:
+                        // - couple this pallet with pallet_asset_registry
+                        // - call get_asset_id
+                        let asset_id: AssetIdOf<T> = 100u32.into();
+                        // ----
+
                         let mut exchange = Self::get_exchange(&asset_id).or(Err(give.clone()))?;
                         let (input_amount, output_amount) = match maximal {
                             // give_amount is fixed input
