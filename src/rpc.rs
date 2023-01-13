@@ -26,64 +26,64 @@ impl<T: Config> From<Error<T>> for RpcError {
 }
 
 impl<T: Config> Pallet<T> {
-    /// Get the price for a fixed-input currency-to-asset trade,
+    /// Get the output amount for a fixed-input currency-to-asset trade,
     /// i.e. 'How much asset would I get if I paid this much currency'?
-    pub fn get_currency_to_asset_input_price(
+    pub fn get_currency_to_asset_output_amount(
         asset_id: AssetIdOf<T>,
         currency_amount: BalanceOf<T>,
     ) -> RpcResult<AssetBalanceOf<T>> {
         let exchange = Self::get_exchange(&asset_id)?;
-        let price = Self::get_input_price(
+        let output_amount = Self::get_output_amount(
             &currency_amount,
             &exchange.currency_reserve,
             &T::asset_to_currency(exchange.token_reserve),
         )?;
-        Ok(T::currency_to_asset(price))
+        Ok(T::currency_to_asset(output_amount))
     }
 
-    /// Get the price for a fixed-output currency-to-asset trade,
+    /// Get the input amount for a fixed-output currency-to-asset trade,
     /// i.e. 'How much currency do I have to pay to get this much asset'?
-    pub fn get_currency_to_asset_output_price(
+    pub fn get_currency_to_asset_input_amount(
         asset_id: AssetIdOf<T>,
         token_amount: AssetBalanceOf<T>,
     ) -> RpcResult<BalanceOf<T>> {
         let exchange = Self::get_exchange(&asset_id)?;
-        let price = Self::get_output_price(
+        let input_amount = Self::get_input_amount(
             &T::asset_to_currency(token_amount),
             &exchange.currency_reserve,
             &T::asset_to_currency(exchange.token_reserve),
         )?;
-        Ok(price)
+        Ok(input_amount)
     }
 
-    /// Get the price for a fixed-input asset-to-currency trade,
+    /// Get the output amount for a fixed-input asset-to-currency trade,
     /// i.e. 'How much currency would I get if I paid this much asset'?
-    pub fn get_asset_to_currency_input_price(
+    pub fn get_asset_to_currency_output_amount(
         asset_id: AssetIdOf<T>,
         token_amount: AssetBalanceOf<T>,
     ) -> RpcResult<BalanceOf<T>> {
         let exchange = Self::get_exchange(&asset_id)?;
-        let price = Self::get_input_price(
+        let output_amount = Self::get_output_amount(
             &T::asset_to_currency(token_amount),
             &T::asset_to_currency(exchange.token_reserve),
             &exchange.currency_reserve,
         )?;
-        Ok(price)
+        Ok(output_amount)
     }
 
-    /// Get the price for a fixed-output currency-to-asset trade,
+    /// Get the input amount for a fixed-output currency-to-asset trade,
     /// i.e. 'How much asset do I have to pay to get this much currency'?
-    pub fn get_asset_to_currency_output_price(
+    pub fn get_asset_to_currency_input_amount(
         asset_id: AssetIdOf<T>,
         currency_amount: BalanceOf<T>,
     ) -> RpcResult<AssetBalanceOf<T>> {
         let exchange = Self::get_exchange(&asset_id)?;
-        let price = Self::get_output_price(
+        let input_amount = Self::get_input_amount(
             &currency_amount,
             &T::asset_to_currency(exchange.token_reserve),
             &exchange.currency_reserve,
         )?;
-        Ok(T::currency_to_asset(price))
+        Ok(T::currency_to_asset(input_amount))
     }
 }
 
@@ -95,142 +95,142 @@ mod tests {
     use frame_support::assert_noop;
 
     #[test]
-    fn get_currency_to_asset_input_price_exchange_not_found() {
+    fn get_currency_to_asset_output_amount_exchange_not_found() {
         new_test_ext().execute_with(|| {
             assert_noop!(
-                Dex::get_currency_to_asset_input_price(u32::MAX, 0),
+                Dex::get_currency_to_asset_output_amount(u32::MAX, 0),
                 RpcError::ExchangeNotFound
             );
         })
     }
 
     #[test]
-    fn get_currency_to_asset_input_price_overflow() {
+    fn get_currency_to_asset_output_amount_overflow() {
         new_test_ext().execute_with(|| {
             assert_noop!(
-                Dex::get_currency_to_asset_input_price(ASSET_A, u128::MAX),
+                Dex::get_currency_to_asset_output_amount(ASSET_A, u128::MAX),
                 RpcError::Overflow
             );
         })
     }
 
     #[test]
-    fn get_currency_to_asset_input_price() {
+    fn get_currency_to_asset_output_amount() {
         new_test_ext().execute_with(|| {
             assert_eq!(
                 996_999,
-                Dex::get_currency_to_asset_input_price(ASSET_A, 1_000_000).unwrap(),
+                Dex::get_currency_to_asset_output_amount(ASSET_A, 1_000_000).unwrap(),
             );
         })
     }
 
     #[test]
-    fn get_currency_to_asset_output_price_exchange_not_found() {
+    fn get_currency_to_asset_input_amount_exchange_not_found() {
         new_test_ext().execute_with(|| {
             assert_noop!(
-                Dex::get_currency_to_asset_output_price(u32::MAX, 0),
+                Dex::get_currency_to_asset_input_amount(u32::MAX, 0),
                 RpcError::ExchangeNotFound
             );
         })
     }
 
     #[test]
-    fn get_currency_to_asset_output_price_not_enough_liquidity() {
+    fn get_currency_to_asset_input_amount_not_enough_liquidity() {
         new_test_ext().execute_with(|| {
             assert_noop!(
-                Dex::get_currency_to_asset_output_price(ASSET_A, u128::MAX),
+                Dex::get_currency_to_asset_input_amount(ASSET_A, u128::MAX),
                 RpcError::NotEnoughLiquidity
             );
         })
     }
 
     #[test]
-    fn get_currency_to_asset_output_price_overflow() {
+    fn get_currency_to_asset_input_amount_overflow() {
         new_test_ext().execute_with(|| {
             // Update exchange reserves to cause overflow
             max_exchange_reserves(ASSET_A);
-            assert_noop!(Dex::get_currency_to_asset_output_price(ASSET_A, 1), RpcError::Overflow);
+            assert_noop!(Dex::get_currency_to_asset_input_amount(ASSET_A, 1), RpcError::Overflow);
         })
     }
 
     #[test]
-    fn get_currency_to_asset_output_price() {
+    fn get_currency_to_asset_input_amount() {
         new_test_ext().execute_with(|| {
             assert_eq!(
                 1_003_011,
-                Dex::get_currency_to_asset_output_price(ASSET_A, 1_000_000).unwrap(),
+                Dex::get_currency_to_asset_input_amount(ASSET_A, 1_000_000).unwrap(),
             );
         })
     }
 
     #[test]
-    fn get_asset_to_currency_input_price_exchange_not_found() {
+    fn get_asset_to_currency_output_amount_exchange_not_found() {
         new_test_ext().execute_with(|| {
             assert_noop!(
-                Dex::get_asset_to_currency_input_price(u32::MAX, 0),
+                Dex::get_asset_to_currency_output_amount(u32::MAX, 0),
                 RpcError::ExchangeNotFound
             );
         })
     }
 
     #[test]
-    fn get_asset_to_currency_input_price_overflow() {
+    fn get_asset_to_currency_output_amount_overflow() {
         new_test_ext().execute_with(|| {
             assert_noop!(
-                Dex::get_asset_to_currency_input_price(ASSET_A, u128::MAX),
+                Dex::get_asset_to_currency_output_amount(ASSET_A, u128::MAX),
                 RpcError::Overflow
             );
         })
     }
 
     #[test]
-    fn get_asset_to_currency_input_price() {
+    fn get_asset_to_currency_output_amount() {
         new_test_ext().execute_with(|| {
             assert_eq!(
                 996_999,
-                Dex::get_asset_to_currency_input_price(ASSET_A, 1_000_000).unwrap(),
+                Dex::get_asset_to_currency_output_amount(ASSET_A, 1_000_000).unwrap(),
             );
         })
     }
 
     #[test]
-    fn get_asset_to_currency_output_price_exchange_not_found() {
+    fn get_asset_to_currency_input_amount_exchange_not_found() {
         new_test_ext().execute_with(|| {
             assert_noop!(
-                Dex::get_asset_to_currency_output_price(u32::MAX, 0),
+                Dex::get_asset_to_currency_input_amount(u32::MAX, 0),
                 RpcError::ExchangeNotFound
             );
         })
     }
 
     #[test]
-    fn get_asset_to_currency_output_price_not_enough_liquidity() {
+    fn get_asset_to_currency_input_amount_not_enough_liquidity() {
         new_test_ext().execute_with(|| {
             assert_noop!(
-                Dex::get_asset_to_currency_output_price(ASSET_A, u128::MAX),
+                Dex::get_asset_to_currency_input_amount(ASSET_A, u128::MAX),
                 RpcError::NotEnoughLiquidity
             );
         })
     }
 
     #[test]
-    fn get_asset_to_currency_output_price_overflow() {
+    fn get_asset_to_currency_input_amount_overflow() {
         new_test_ext().execute_with(|| {
             // Update exchange reserves to cause overflow
             max_exchange_reserves(ASSET_A);
             assert_noop!(
-                Dex::get_asset_to_currency_output_price(ASSET_A, INIT_LIQUIDITY - 1),
+                Dex::get_asset_to_currency_input_amount(ASSET_A, INIT_LIQUIDITY - 1),
                 RpcError::Overflow
             );
         })
     }
 
     #[test]
-    fn get_asset_to_currency_output_price() {
+    fn get_asset_to_currency_input_amount() {
         new_test_ext().execute_with(|| {
             assert_eq!(
                 1_003_011,
-                Dex::get_asset_to_currency_output_price(ASSET_A, 1_000_000).unwrap(),
+                Dex::get_asset_to_currency_input_amount(ASSET_A, 1_000_000).unwrap(),
             );
         })
     }

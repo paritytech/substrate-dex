@@ -24,32 +24,32 @@ mod tests;
 
 #[rpc(client, server)]
 pub trait DexApi<BlockHash, AssetId, Balance, AssetBalance> {
-    #[method(name = "dex_get_currency_to_asset_input_price")]
-    fn get_currency_to_asset_input_price(
+    #[method(name = "dex_get_currency_to_asset_output_amount")]
+    fn get_currency_to_asset_output_amount(
         &self,
         asset_id: AssetId,
         currency_amount: Balance,
         at: Option<BlockHash>,
     ) -> RpcResult<AssetBalance>;
 
-    #[method(name = "dex_get_currency_to_asset_output_price")]
-    fn get_currency_to_asset_output_price(
+    #[method(name = "dex_get_currency_to_asset_input_amount")]
+    fn get_currency_to_asset_input_amount(
         &self,
         asset_id: AssetId,
         token_amount: AssetBalance,
         at: Option<BlockHash>,
     ) -> RpcResult<Balance>;
 
-    #[method(name = "dex_get_asset_to_currency_input_price")]
-    fn get_asset_to_currency_input_price(
+    #[method(name = "dex_get_asset_to_currency_output_amount")]
+    fn get_asset_to_currency_output_amount(
         &self,
         asset_id: AssetId,
         token_amount: AssetBalance,
         at: Option<BlockHash>,
     ) -> RpcResult<Balance>;
 
-    #[method(name = "dex_get_asset_to_currency_output_price")]
-    fn get_asset_to_currency_output_price(
+    #[method(name = "dex_get_asset_to_currency_input_amount")]
+    fn get_asset_to_currency_input_amount(
         &self,
         asset_id: AssetId,
         currency_amount: Balance,
@@ -95,7 +95,7 @@ where
     Balance: Codec + MaybeDisplay + Copy + Send + Sync + 'static,
     AssetBalance: Codec + MaybeDisplay + Copy + Send + Sync + 'static,
 {
-    fn get_currency_to_asset_input_price(
+    fn get_currency_to_asset_output_amount(
         &self,
         asset_id: AssetId,
         currency_amount: Balance,
@@ -104,12 +104,12 @@ where
         let at = self.block_id(at);
         self.client
             .runtime_api()
-            .get_currency_to_asset_input_price(&at, asset_id, currency_amount)
+            .get_currency_to_asset_output_amount(&at, asset_id, currency_amount)
             .map_err(runtime_error)?
             .map_err(dex_rpc_error)
     }
 
-    fn get_currency_to_asset_output_price(
+    fn get_currency_to_asset_input_amount(
         &self,
         asset_id: AssetId,
         token_amount: AssetBalance,
@@ -118,12 +118,12 @@ where
         let at = self.block_id(at);
         self.client
             .runtime_api()
-            .get_currency_to_asset_output_price(&at, asset_id, token_amount)
+            .get_currency_to_asset_input_amount(&at, asset_id, token_amount)
             .map_err(runtime_error)?
             .map_err(dex_rpc_error)
     }
 
-    fn get_asset_to_currency_input_price(
+    fn get_asset_to_currency_output_amount(
         &self,
         asset_id: AssetId,
         token_amount: AssetBalance,
@@ -132,12 +132,12 @@ where
         let at = self.block_id(at);
         self.client
             .runtime_api()
-            .get_asset_to_currency_input_price(&at, asset_id, token_amount)
+            .get_asset_to_currency_output_amount(&at, asset_id, token_amount)
             .map_err(runtime_error)?
             .map_err(dex_rpc_error)
     }
 
-    fn get_asset_to_currency_output_price(
+    fn get_asset_to_currency_input_amount(
         &self,
         asset_id: AssetId,
         currency_amount: Balance,
@@ -146,7 +146,7 @@ where
         let at = self.block_id(at);
         self.client
             .runtime_api()
-            .get_asset_to_currency_output_price(&at, asset_id, currency_amount)
+            .get_asset_to_currency_input_amount(&at, asset_id, currency_amount)
             .map_err(runtime_error)?
             .map_err(dex_rpc_error)
     }

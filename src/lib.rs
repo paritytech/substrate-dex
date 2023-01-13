@@ -816,7 +816,7 @@ pub mod pallet {
             }
         }
 
-        pub(crate) fn get_input_price(
+        pub(crate) fn get_output_amount(
             input_amount: &BalanceOf<T>,
             input_reserve: &BalanceOf<T>,
             output_reserve: &BalanceOf<T>,
@@ -837,7 +837,7 @@ pub mod pallet {
             Ok(numerator / denominator)
         }
 
-        pub(crate) fn get_output_price(
+        pub(crate) fn get_input_amount(
             output_amount: &BalanceOf<T>,
             input_reserve: &BalanceOf<T>,
             output_reserve: &BalanceOf<T>,
@@ -866,7 +866,7 @@ pub mod pallet {
                     input_amount: currency_amount,
                     min_output: min_tokens,
                 } => {
-                    let token_amount = Self::get_input_price(
+                    let token_amount = Self::get_output_amount(
                         &currency_amount,
                         &exchange.currency_reserve,
                         &T::asset_to_currency(exchange.token_reserve),
@@ -879,7 +879,7 @@ pub mod pallet {
                     max_input: max_currency,
                     output_amount: token_amount,
                 } => {
-                    let currency_amount = Self::get_output_price(
+                    let currency_amount = Self::get_input_amount(
                         &T::asset_to_currency(token_amount),
                         &exchange.currency_reserve,
                         &T::asset_to_currency(exchange.token_reserve),
@@ -899,7 +899,7 @@ pub mod pallet {
                     input_amount: token_amount,
                     min_output: min_currency,
                 } => {
-                    let currency_amount = Self::get_input_price(
+                    let currency_amount = Self::get_output_amount(
                         &T::asset_to_currency(token_amount),
                         &T::asset_to_currency(exchange.token_reserve),
                         &exchange.currency_reserve,
@@ -911,7 +911,7 @@ pub mod pallet {
                     max_input: max_tokens,
                     output_amount: currency_amount,
                 } => {
-                    let token_amount = Self::get_output_price(
+                    let token_amount = Self::get_input_amount(
                         &currency_amount,
                         &T::asset_to_currency(exchange.token_reserve),
                         &exchange.currency_reserve,
@@ -933,12 +933,12 @@ pub mod pallet {
                     input_amount: sold_token_amount,
                     min_output: min_bought_tokens,
                 } => {
-                    let currency_amount = Self::get_input_price(
+                    let currency_amount = Self::get_output_amount(
                         &T::asset_to_currency(sold_token_amount),
                         &T::asset_to_currency(sold_asset_exchange.token_reserve),
                         &sold_asset_exchange.currency_reserve,
                     )?;
-                    let bought_token_amount = Self::get_input_price(
+                    let bought_token_amount = Self::get_output_amount(
                         &currency_amount,
                         &bought_asset_exchange.currency_reserve,
                         &T::asset_to_currency(bought_asset_exchange.token_reserve),
@@ -954,12 +954,12 @@ pub mod pallet {
                     max_input: max_sold_tokens,
                     output_amount: bought_token_amount,
                 } => {
-                    let currency_amount = Self::get_output_price(
+                    let currency_amount = Self::get_input_amount(
                         &T::asset_to_currency(bought_token_amount),
                         &bought_asset_exchange.currency_reserve,
                         &T::asset_to_currency(bought_asset_exchange.token_reserve),
                     )?;
-                    let sold_token_amount = Self::get_output_price(
+                    let sold_token_amount = Self::get_input_amount(
                         &currency_amount,
                         &T::asset_to_currency(sold_asset_exchange.token_reserve),
                         &sold_asset_exchange.currency_reserve,

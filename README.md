@@ -20,7 +20,7 @@ prices by custom RPC methods (see [RPC](#rpc) section).
 * **Currency** – The chain's main currency/token (e.g. DOT for the relay chain, ACA for Acala).
 * **Exchange** – A liquidity pool containing certain amount of an asset, and certain amount of currency. It allows users
 to swap this particular asset for currency or vice versa. The asset price (i.e. exchange rate) is established dynamically
-based on the currency-to-asset ratio.
+using the [constant product formula](https://docs.uniswap.org/contracts/v2/concepts/protocol-overview/glossary#constant-product-formula).
 * **Liquidity provider** – An account which deposits certain amount of asset and currency into an exchange.
   Providers are incentivized by receiving a fee (percentage of all transactions) paid by traders.
 * **Liquidity token** – A transferable, fungible token representing an account's share in a particular liquidity pool.
@@ -225,9 +225,9 @@ Emit two events on success: `AssetTradedForCurrency` and `CurrencyTradedForAsset
 ## RPC
 
 <details>
-<summary><h3>get_currency_to_asset_input_price</h3></summary>
+<summary><h3>get_currency_to_asset_output_amount</h3></summary>
 
-Get the price for a fixed-input currency-to-asset trade,
+Get the output amount for a fixed-input currency-to-asset trade,
 i.e. 'How much asset would I get if I paid this much currency'?
 
 #### Parameters:
@@ -236,9 +236,9 @@ i.e. 'How much asset would I get if I paid this much currency'?
 </details>
 
 <details>
-<summary><h3>get_currency_to_asset_output_price</h3></summary>
+<summary><h3>get_currency_to_asset_input_amount</h3></summary>
 
-Get the price for a fixed-output currency-to-asset trade,
+Get the input amount for a fixed-output currency-to-asset trade,
 i.e. 'How much currency do I have to pay to get this much asset'?
 
 #### Parameters:
@@ -247,9 +247,9 @@ i.e. 'How much currency do I have to pay to get this much asset'?
 </details>
 
 <details>
-<summary><h3>get_asset_to_currency_input_price</h3></summary>
+<summary><h3>get_asset_to_currency_output_amount</h3></summary>
 
-Get the price for a fixed-input asset-to-currency trade,
+Get the output amount for a fixed-input asset-to-currency trade,
 i.e. 'How much currency would I get if I paid this much asset'?
 
 #### Parameters:
@@ -258,8 +258,8 @@ i.e. 'How much currency would I get if I paid this much asset'?
 </details>
 
 <details>
-<summary><h3>get_asset_to_currency_output_price</h3></summary>
-Get the price for a fixed-output currency-to-asset trade,
+<summary><h3>get_asset_to_currency_input_amount</h3></summary>
+Get the input amount for a fixed-output currency-to-asset trade,
 i.e. 'How much asset do I have to pay to get this much currency'?
 
 #### Parameters:
@@ -405,32 +405,32 @@ Add the RPC implementation.
 impl_runtime_apis! {
     // --snip--
     impl pallet_dex_rpc_runtime_api::DexApi<Block, AssetId, Balance, AssetBalance> for Runtime {
-        fn get_currency_to_asset_input_price(
+        fn get_currency_to_asset_output_amount(
             asset_id: AssetId,
             currency_amount: Balance
         ) -> pallet_dex_rpc_runtime_api::RpcResult<AssetBalance> {
-            Dex::get_currency_to_asset_input_price(asset_id, currency_amount)
+            Dex::get_currency_to_asset_output_amount(asset_id, currency_amount)
         }
 
-        fn get_currency_to_asset_output_price(
+        fn get_currency_to_asset_input_amount(
             asset_id: AssetId,
             token_amount: AssetBalance
         ) -> pallet_dex_rpc_runtime_api::RpcResult<Balance> {
-            Dex::get_currency_to_asset_output_price(asset_id, token_amount)
+            Dex::get_currency_to_asset_input_amount(asset_id, token_amount)
         }
 
-        fn get_asset_to_currency_input_price(
+        fn get_asset_to_currency_output_amount(
             asset_id: AssetId,
             token_amount: AssetBalance
         ) -> pallet_dex_rpc_runtime_api::RpcResult<Balance> {
-            Dex::get_asset_to_currency_input_price(asset_id, token_amount)
+            Dex::get_asset_to_currency_output_amount(asset_id, token_amount)
         }
 
-        fn get_asset_to_currency_output_price(
+        fn get_asset_to_currency_input_amount(
             asset_id: AssetId,
             currency_amount: Balance
         ) -> pallet_dex_rpc_runtime_api::RpcResult<AssetBalance> {
-            Dex::get_asset_to_currency_output_price(asset_id, currency_amount)
+            Dex::get_asset_to_currency_input_amount(asset_id, currency_amount)
         }
     }
 }
