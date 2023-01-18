@@ -10,9 +10,9 @@ sp_api::decl_runtime_apis! {
         Balance: Codec + MaybeDisplay,
         AssetBalance: Codec + MaybeDisplay,
     {
-        fn get_currency_to_asset_input_price(asset_id: AssetId, currency_amount: Balance) -> RpcResult<AssetBalance>;
-        fn get_currency_to_asset_output_price(asset_id: AssetId, token_amount: AssetBalance) -> RpcResult<Balance>;
-        fn get_asset_to_currency_input_price(asset_id: AssetId, token_amount: AssetBalance) -> RpcResult<Balance>;
-        fn get_asset_to_currency_output_price(asset_id: AssetId, currency_amount: Balance) -> RpcResult<AssetBalance>;
+        fn get_currency_to_asset_output_amount(asset_id: AssetId, currency_amount: Balance) -> RpcResult<AssetBalance>;
+        fn get_currency_to_asset_input_amount(asset_id: AssetId, token_amount: AssetBalance) -> RpcResult<Balance>;
+        fn get_asset_to_currency_output_amount(asset_id: AssetId, token_amount: AssetBalance) -> RpcResult<Balance>;
+        fn get_asset_to_currency_input_amount(asset_id: AssetId, currency_amount: Balance) -> RpcResult<AssetBalance>;
     }
 }
