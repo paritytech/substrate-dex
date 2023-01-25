@@ -296,13 +296,13 @@ branch = "polkadot-v0.9.32"
 [dependencies.pallet-dex]
 version = "0.0.1"
 default-features = false
-git = "https://github.com/Wiezzel/substrate-dex.git"
+git = "https://github.com/paritytech/substrate-dex.git"
 branch = "master"
 
 [dependencies.pallet-dex-rpc-runtime-api]
 version = "0.0.1"
 default-features = false
-git = "https://github.com/Wiezzel/substrate-dex.git"
+git = "https://github.com/paritytech/substrate-dex.git"
 branch = "master"
 ```
 
@@ -325,7 +325,7 @@ Add `pallet-dex-rpc` to dependencies.
 [dependencies.pallet-dex-rpc]
 version = "0.0.1"
 default-features = false
-git = "https://github.com/Wiezzel/substrate-dex.git"
+git = "https://github.com/paritytech/substrate-dex.git"
 branch = "master"
 ```
 
