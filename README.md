@@ -277,10 +277,10 @@ i.e. 'How much asset do I have to pay to get this much currency'?
 ## How to add `pallet-dex` to a node
 
 :information_source: The pallet is compatible with Substrate version
-[polkadot-v0.9.30](https://github.com/paritytech/substrate/tree/polkadot-v0.9.30).
+[polkadot-v0.9.32](https://github.com/paritytech/substrate/tree/polkadot-v0.9.32).
 
 :information_source: This section is based on
-[Substrate node template](https://github.com/substrate-developer-hub/substrate-node-template/tree/polkadot-v0.9.30).
+[Substrate node template](https://github.com/substrate-developer-hub/substrate-node-template/tree/polkadot-v0.9.32).
 Integrating `pallet-dex` with another node might look slightly different.
 
 ### Runtime's `Cargo.toml`
@@ -291,18 +291,18 @@ Add `pallet-dex`, the RPC runtime API, and `pallet-assets` (required for handlin
 version = "4.0.0-dev"
 default-features = false
 git = "https://github.com/paritytech/substrate.git"
-branch = "polkadot-v0.9.30"
+branch = "polkadot-v0.9.32"
 
 [dependencies.pallet-dex]
 version = "0.0.1"
 default-features = false
-git = "https://github.com/Wiezzel/substrate-dex.git"
+git = "https://github.com/paritytech/substrate-dex.git"
 branch = "master"
 
 [dependencies.pallet-dex-rpc-runtime-api]
 version = "0.0.1"
 default-features = false
-git = "https://github.com/Wiezzel/substrate-dex.git"
+git = "https://github.com/paritytech/substrate-dex.git"
 branch = "master"
 ```
 
@@ -325,7 +325,7 @@ Add `pallet-dex-rpc` to dependencies.
 [dependencies.pallet-dex-rpc]
 version = "0.0.1"
 default-features = false
-git = "https://github.com/Wiezzel/substrate-dex.git"
+git = "https://github.com/paritytech/substrate-dex.git"
 branch = "master"
 ```
 
