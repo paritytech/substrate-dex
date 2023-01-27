@@ -156,7 +156,7 @@ fn runtime_error(err: impl Debug) -> RpcError {
     CallError::Custom(ErrorObject::owned(
         RUNTIME_ERROR,
         "Runtime error",
-        Some(format!("{:?}", err)),
+        Some(format!("{err:?}")),
     ))
     .into()
 }
