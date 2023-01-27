@@ -1,7 +1,9 @@
 use crate as dex;
-use frame_support::traits::{ConstU128, ConstU16, ConstU32, Everything, GenesisBuild};
+use frame_support::traits::{
+    AsEnsureOriginWithArg, ConstU128, ConstU16, ConstU32, Everything, GenesisBuild,
+};
 use frame_support::{parameter_types, PalletId};
-use frame_system::EnsureRoot;
+use frame_system::{EnsureRoot, EnsureSigned};
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, Identity, IdentityLookup};
 
@@ -66,6 +68,7 @@ impl pallet_assets::Config for Test {
     type Balance = u128;
     type AssetId = u32;
     type Currency = Balances;
+    type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<u64>>;
     type ForceOrigin = EnsureRoot<u64>;
     type AssetDeposit = ConstU128<1>;
     type AssetAccountDeposit = ConstU128<10>;
