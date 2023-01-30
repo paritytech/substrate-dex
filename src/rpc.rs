@@ -20,7 +20,7 @@ impl<T: Config> From<Error<T>> for RpcError {
             Error::ExchangeNotFound => Self::ExchangeNotFound,
             Error::NotEnoughLiquidity => Self::NotEnoughLiquidity,
             Error::Overflow => Self::Overflow,
-            err => Self::Unexpected(format!("{:?}", err).into_bytes()),
+            err => Self::Unexpected(format!("{err:?}").into_bytes()),
         }
     }
 }

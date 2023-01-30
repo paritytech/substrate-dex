@@ -67,6 +67,7 @@ impl pallet_assets::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Balance = u128;
     type AssetId = u32;
+    type AssetIdParameter = u32;
     type Currency = Balances;
     type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<u64>>;
     type ForceOrigin = EnsureRoot<u64>;
@@ -79,6 +80,7 @@ impl pallet_assets::Config for Test {
     type Freezer = ();
     type Extra = ();
     type WeightInfo = ();
+    type RemoveItemsLimit = ConstU32<5>;
 }
 
 parameter_types! {

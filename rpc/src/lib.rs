@@ -153,12 +153,8 @@ where
 }
 
 fn runtime_error(err: impl Debug) -> RpcError {
-    CallError::Custom(ErrorObject::owned(
-        RUNTIME_ERROR,
-        "Runtime error",
-        Some(format!("{:?}", err)),
-    ))
-    .into()
+    CallError::Custom(ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}"))))
+        .into()
 }
 
 fn dex_rpc_error(err: DexRpcError) -> RpcError {

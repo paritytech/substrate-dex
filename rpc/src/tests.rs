@@ -23,7 +23,7 @@ const DATA: [u8; 15] = [
 fn assert(error: Error, code: i32, message: &str, data: Option<&[u8]>) {
     assert!(matches!(error, Error::Call(e) if matches!(&e, CallError::Custom(e)
     if e.code() == code && e.message() == message &&
-        e.data().map(|v| v.get().to_string()) == data.map(|d| format!("{:?}", d).replace(' ', "")))));
+        e.data().map(|v| v.get().to_string()) == data.map(|d| format!("{d:?}").replace(' ', "")))));
 }
 
 #[tokio::test]
