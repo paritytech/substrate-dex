@@ -390,6 +390,7 @@ pub mod pallet {
         ///   * `TokenIdTaken` – Specified `liquidity_token_id` is already taken by another liquidity token.
         ///   * `CurrencyAmountTooLow` – Specified `currency_amount` is lower than `MinDeposit`.
         ///   * `TokenAmountIsZero` – Specified `token_amount` equals 0.
+        #[pallet::call_index(0)]
         #[pallet::weight(<T as Config>::WeightInfo::create_exchange())]
         #[transactional]
         pub fn create_exchange(
@@ -464,6 +465,7 @@ pub mod pallet {
         ///     Currency and tokens need to be added proportionally.
         ///   * `MinLiquidityTooHigh` – The amount of liquidity tokes which would be minted by depositing the specified
         ///     `currency_amount` is lower than the specified `min_liquidity`.
+        #[pallet::call_index(1)]
         #[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
         pub fn add_liquidity(
             origin: OriginFor<T>,
@@ -532,6 +534,7 @@ pub mod pallet {
         ///     `liquidity_amount` is lower than the specified `min_currency`.
         ///   * `MinTokensTooHigh` – The amount of tokens which could be received in exchange for the specified
         ///     `liquidity_amount` is lower than the specified `min_tokens`.
+        #[pallet::call_index(2)]
         #[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
         pub fn remove_liquidity(
             origin: OriginFor<T>,
@@ -598,6 +601,7 @@ pub mod pallet {
         ///     amount of tokens (`output_amount`).
         ///   * `BalanceTooLow` – The available currency balance of the caller account is not enough to perform the trade.
         ///   * `Overflow` – An overflow occurred during price computation.
+        #[pallet::call_index(3)]
         #[pallet::weight(<T as Config>::WeightInfo::currency_to_asset())]
         pub fn currency_to_asset(
             origin: OriginFor<T>,
@@ -653,6 +657,7 @@ pub mod pallet {
         ///     amount of currency (`output_amount`).
         ///   * `NotEnoughTokens` – The available asset balance of the caller account is not enough to perform the trade.
         ///   * `Overflow` – An overflow occurred during price computation.
+        #[pallet::call_index(4)]
         #[pallet::weight(<T as Config>::WeightInfo::asset_to_currency())]
         pub fn asset_to_currency(
             origin: OriginFor<T>,
@@ -707,6 +712,7 @@ pub mod pallet {
         ///     (`output_amount`).
         ///   * `NotEnoughTokens` – The available sold asset balance of the caller account is not enough to perform the trade.
         ///   * `Overflow` – An overflow occurred during price computation.
+        #[pallet::call_index(5)]
         #[pallet::weight(<T as Config>::WeightInfo::asset_to_asset())]
         pub fn asset_to_asset(
             origin: OriginFor<T>,
