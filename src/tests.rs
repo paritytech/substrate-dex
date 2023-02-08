@@ -21,9 +21,12 @@ fn create_exchange() {
         assert_eq!(exchange.currency_reserve, 1);
         assert_eq!(exchange.token_reserve, 1);
         assert_eq!(Assets::total_supply(exchange.liquidity_token_id), 1);
-        assert!(
-            matches!(last_event(), crate::Event::ExchangeCreated(asset, _) if asset == ASSET_B)
-        );
+
+        if let Some(event) = last_event() {
+            assert!(matches!(event, crate::Event::ExchangeCreated(asset, _) if asset == ASSET_B));
+        } else {
+            debug_assert!(false);
+        }
     })
 }
 
@@ -109,9 +112,10 @@ fn add_liquidity() {
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY + 1_000);
         assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(INIT_LIQUIDITY + 1_001));
+
         assert_eq!(
             last_event(),
-            crate::Event::LiquidityAdded(ACCOUNT_B, ASSET_A, 1_000, 1_001, 1_000)
+            Some(crate::Event::LiquidityAdded(ACCOUNT_B, ASSET_A, 1_000, 1_001, 1_000))
         );
     })
 }
@@ -267,7 +271,10 @@ fn remove_liquidity() {
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY - 500);
         assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(INIT_LIQUIDITY - 500));
-        assert_eq!(last_event(), crate::Event::LiquidityRemoved(ACCOUNT_A, ASSET_A, 500, 500, 500));
+        assert_eq!(
+            last_event(),
+            Some(crate::Event::LiquidityRemoved(ACCOUNT_A, ASSET_A, 500, 500, 500))
+        );
     });
 }
 
@@ -398,13 +405,13 @@ fn currency_to_asset_fixed_input() {
         );
         assert_eq!(
             last_event(),
-            crate::Event::CurrencyTradedForAsset(
+            Some(crate::Event::CurrencyTradedForAsset(
                 ASSET_A,
                 ACCOUNT_B,
                 ACCOUNT_B,
                 curr_amount,
                 token_amount,
-            )
+            ))
         );
     });
 }
@@ -439,13 +446,13 @@ fn currency_to_asset_fixed_output() {
         );
         assert_eq!(
             last_event(),
-            crate::Event::CurrencyTradedForAsset(
+            Some(crate::Event::CurrencyTradedForAsset(
                 ASSET_A,
                 ACCOUNT_B,
                 ACCOUNT_B,
                 curr_amount,
                 token_amount,
-            )
+            ))
         );
     });
 }
@@ -685,13 +692,13 @@ fn currency_to_asset_transfer() {
         assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_C), Some(INIT_BALANCE + token_amount));
         assert_eq!(
             last_event(),
-            crate::Event::CurrencyTradedForAsset(
+            Some(crate::Event::CurrencyTradedForAsset(
                 ASSET_A,
                 ACCOUNT_B,
                 ACCOUNT_C,
                 curr_amount,
                 token_amount,
-            )
+            ))
         );
     });
 }
@@ -726,13 +733,13 @@ fn asset_to_currency_fixed_input() {
         );
         assert_eq!(
             last_event(),
-            crate::Event::AssetTradedForCurrency(
+            Some(crate::Event::AssetTradedForCurrency(
                 ASSET_A,
                 ACCOUNT_B,
                 ACCOUNT_B,
                 curr_amount,
                 token_amount,
-            )
+            ))
         );
     });
 }
@@ -972,13 +979,13 @@ fn asset_to_currency_transfer() {
         assert_eq!(Balances::free_balance(ACCOUNT_C), INIT_BALANCE + curr_amount);
         assert_eq!(
             last_event(),
-            crate::Event::AssetTradedForCurrency(
+            Some(crate::Event::AssetTradedForCurrency(
                 ASSET_A,
                 ACCOUNT_B,
                 ACCOUNT_C,
                 curr_amount,
                 token_amount,
-            )
+            ))
         );
     });
 }
@@ -1013,13 +1020,13 @@ fn asset_to_currency_fixed_output() {
         );
         assert_eq!(
             last_event(),
-            crate::Event::AssetTradedForCurrency(
+            Some(crate::Event::AssetTradedForCurrency(
                 ASSET_A,
                 ACCOUNT_B,
                 ACCOUNT_B,
                 curr_amount,
                 token_amount,
-            )
+            ))
         );
     });
 }
@@ -1082,7 +1089,7 @@ fn asset_to_asset_fixed_input() {
 
         assert_eq!(
             last_n_events(2),
-            vec![
+            Some(vec![
                 crate::Event::AssetTradedForCurrency(
                     ASSET_A,
                     ACCOUNT_B,
@@ -1097,7 +1104,7 @@ fn asset_to_asset_fixed_input() {
                     curr_amount,
                     bought_token_amount,
                 ),
-            ]
+            ])
         );
     });
 }
@@ -1421,7 +1428,7 @@ fn asset_to_asset_transfer() {
         let pallet_account = Test::pallet_account();
         assert_eq!(
             last_n_events(2),
-            vec![
+            Some(vec![
                 crate::Event::AssetTradedForCurrency(
                     ASSET_A,
                     ACCOUNT_B,
@@ -1436,7 +1443,7 @@ fn asset_to_asset_transfer() {
                     curr_amount,
                     bought_token_amount,
                 ),
-            ]
+            ])
         );
     });
 }
@@ -1499,7 +1506,7 @@ fn asset_to_asset_fixed_output() {
 
         assert_eq!(
             last_n_events(2),
-            vec![
+            Some(vec![
                 crate::Event::AssetTradedForCurrency(
                     ASSET_A,
                     ACCOUNT_B,
@@ -1514,7 +1521,7 @@ fn asset_to_asset_fixed_output() {
                     curr_amount,
                     bought_token_amount,
                 ),
-            ]
+            ])
         );
     });
 }
