@@ -81,6 +81,7 @@ impl pallet_assets::Config for Test {
     type Extra = ();
     type WeightInfo = ();
     type RemoveItemsLimit = ConstU32<5>;
+    type CallbackHandle = ();
 }
 
 parameter_types! {
