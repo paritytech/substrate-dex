@@ -2,10 +2,10 @@
 name = "pallet-dex-rpc-runtime-api"
 version = "0.0.1"
 description = "RPC runtime API fot the DEX pallet"
-authors = ["Adam Wierzbicki <adam.wierzbicki@parity.io>"]
+authors = ["Adam Wierzbicki, Parity Technologies <admin@parity.io>"]
 edition = "2021"
 publish = false
-repository = "https://github.com/Wiezzel/substrate-dex"
+repository = "https://github.com/paritytech/substrate-dex"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -14,8 +14,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 
 pallet-dex = { version = "0.0.1", default-features = false, path = "../.." }
-sp-api = { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.36" }
-sp-runtime = { default-features = false, version = "7.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.36" }
+sp-api = { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37" }
+sp-runtime = { default-features = false, version = "7.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37" }
 
 [features]
 default = ["std"]
