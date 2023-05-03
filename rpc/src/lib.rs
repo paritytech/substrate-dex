@@ -90,7 +90,7 @@ impl<Client, Block, AssetId, Balance, AssetBalance>
 where
     Block: sp_runtime::traits::Block,
     Client: ProvideRuntimeApi<Block> + HeaderBackend<Block> + Send + Sync + 'static,
-    Client::Api: DexRuntimeApi<Block,AssetId, Balance, AssetBalance>,
+    Client::Api: DexRuntimeApi<Block, AssetId, Balance, AssetBalance>,
     AssetId: Codec + MaybeDisplay + Copy + Send + Sync + 'static,
     Balance: Codec + MaybeDisplay + Copy + Send + Sync + 'static,
     AssetBalance: Codec + MaybeDisplay + Copy + Send + Sync + 'static,
