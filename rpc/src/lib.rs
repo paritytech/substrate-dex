@@ -90,7 +90,7 @@ impl<Client, Block, AssetId, Balance, AssetBalance>
 where
     Block: sp_runtime::traits::Block,
     Client: ProvideRuntimeApi<Block> + HeaderBackend<Block> + Send + Sync + 'static,
-    Client::Api: DexRuntimeApi<Block, AssetId, Balance, AssetBalance>,
+    Client::Api: DexRuntimeApi<Block,AssetId, Balance, AssetBalance>,
     AssetId: Codec + MaybeDisplay + Copy + Send + Sync + 'static,
     Balance: Codec + MaybeDisplay + Copy + Send + Sync + 'static,
     AssetBalance: Codec + MaybeDisplay + Copy + Send + Sync + 'static,
@@ -101,10 +101,10 @@ where
         currency_amount: Balance,
         at: Option<Block::Hash>,
     ) -> RpcResult<AssetBalance> {
-        let at = self.block_id(at);
+        let at = at.unwrap_or_default();
         self.client
             .runtime_api()
-            .get_currency_to_asset_output_amount(&at, asset_id, currency_amount)
+            .get_currency_to_asset_output_amount(at, asset_id, currency_amount)
             .map_err(runtime_error)?
             .map_err(dex_rpc_error)
     }
@@ -115,10 +115,10 @@ where
         token_amount: AssetBalance,
         at: Option<Block::Hash>,
     ) -> RpcResult<Balance> {
-        let at = self.block_id(at);
+        let at = at.unwrap_or_default();
         self.client
             .runtime_api()
-            .get_currency_to_asset_input_amount(&at, asset_id, token_amount)
+            .get_currency_to_asset_input_amount(at, asset_id, token_amount)
             .map_err(runtime_error)?
             .map_err(dex_rpc_error)
     }
@@ -129,10 +129,10 @@ where
         token_amount: AssetBalance,
         at: Option<Block::Hash>,
     ) -> RpcResult<Balance> {
-        let at = self.block_id(at);
+        let at = at.unwrap_or_default();
         self.client
             .runtime_api()
-            .get_asset_to_currency_output_amount(&at, asset_id, token_amount)
+            .get_asset_to_currency_output_amount(at, asset_id, token_amount)
             .map_err(runtime_error)?
             .map_err(dex_rpc_error)
     }
@@ -143,10 +143,10 @@ where
         currency_amount: Balance,
         at: Option<Block::Hash>,
     ) -> RpcResult<AssetBalance> {
-        let at = self.block_id(at);
+        let at = at.unwrap_or_default();
         self.client
             .runtime_api()
-            .get_asset_to_currency_input_amount(&at, asset_id, currency_amount)
+            .get_asset_to_currency_input_amount(at, asset_id, currency_amount)
             .map_err(runtime_error)?
             .map_err(dex_rpc_error)
     }
