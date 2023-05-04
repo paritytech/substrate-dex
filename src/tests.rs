@@ -1478,7 +1478,7 @@ fn asset_to_asset_fixed_output() {
         assert_eq!(exchange_b.currency_reserve, INIT_LIQUIDITY + curr_amount);
 
         assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
+            Assets::maybe_balance(ASSET_A, ACCOUNT_B),
             Some(INIT_BALANCE - sold_token_amount)
         );
         assert_eq!(
@@ -1582,6 +1582,6 @@ fn trade_assets_back_and_forth() {
         assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_A), Some(INIT_BALANCE + 4));
         assert_eq!(Assets::maybe_balance(ASSET_B, ACCOUNT_A), Some(INIT_BALANCE + 4));
         assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_B), Some(INIT_BALANCE - 4));
-        assert_eq!(Assets::maybe_balance(ASSET_B, &ACCOUNT_B), Some(INIT_BALANCE - 4));
+        assert_eq!(Assets::maybe_balance(ASSET_B, ACCOUNT_B), Some(INIT_BALANCE - 4));
     });
 }
