@@ -77,6 +77,7 @@ where
     }
 
     #[inline(always)]
+    #[allow(dead_code)]
     fn block_id(&self, block_hash: Option<HashOf<Block>>) -> BlockId<Block> {
         // If the block hash is not supplied assume the best block.
         let block_hash = block_hash.unwrap_or_else(|| self.client.info().best_hash);
