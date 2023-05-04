@@ -103,12 +103,12 @@ fn add_liquidity() {
         assert_eq!(exchange.currency_reserve, INIT_LIQUIDITY + 1_000);
         assert_eq!(exchange.token_reserve, INIT_LIQUIDITY + 1_001);
         assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - 1_000);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE - 1_001));
-        assert_eq!(Assets::maybe_balance(exchange.liquidity_token_id, &ACCOUNT_B), Some(1_000));
+        assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_B), Some(INIT_BALANCE - 1_001));
+        assert_eq!(Assets::maybe_balance(exchange.liquidity_token_id, ACCOUNT_B), Some(1_000));
         assert_eq!(Assets::total_supply(exchange.liquidity_token_id), INIT_LIQUIDITY + 1_000);
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY + 1_000);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(INIT_LIQUIDITY + 1_001));
+        assert_eq!(Assets::maybe_balance(ASSET_A, pallet_account), Some(INIT_LIQUIDITY + 1_001));
         assert_eq!(
             last_event(),
             crate::Event::LiquidityAdded(ACCOUNT_B, ASSET_A, 1_000, 1_001, 1_000)
@@ -256,17 +256,17 @@ fn remove_liquidity() {
         assert_eq!(exchange.token_reserve, INIT_LIQUIDITY - 500);
         assert_eq!(Balances::free_balance(ACCOUNT_A), INIT_BALANCE - INIT_LIQUIDITY + 500);
         assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_A),
+            Assets::maybe_balance(ASSET_A, ACCOUNT_A),
             Some(INIT_BALANCE - INIT_LIQUIDITY + 500)
         );
         assert_eq!(
-            Assets::maybe_balance(exchange.liquidity_token_id, &ACCOUNT_A),
+            Assets::maybe_balance(exchange.liquidity_token_id, ACCOUNT_A),
             Some(INIT_LIQUIDITY - 500)
         );
         assert_eq!(Assets::total_supply(exchange.liquidity_token_id), INIT_LIQUIDITY - 500);
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY - 500);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &pallet_account), Some(INIT_LIQUIDITY - 500));
+        assert_eq!(Assets::maybe_balance(ASSET_A, pallet_account), Some(INIT_LIQUIDITY - 500));
         assert_eq!(last_event(), crate::Event::LiquidityRemoved(ACCOUNT_A, ASSET_A, 500, 500, 500));
     });
 }
@@ -389,11 +389,11 @@ fn currency_to_asset_fixed_input() {
         assert_eq!(exchange.currency_reserve, INIT_LIQUIDITY + curr_amount);
         assert_eq!(exchange.token_reserve, INIT_LIQUIDITY - token_amount);
         assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - curr_amount);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE + token_amount));
+        assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_B), Some(INIT_BALANCE + token_amount));
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY + curr_amount);
         assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
+            Assets::maybe_balance(ASSET_A, pallet_account),
             Some(INIT_LIQUIDITY - token_amount)
         );
         assert_eq!(
@@ -430,11 +430,11 @@ fn currency_to_asset_fixed_output() {
         assert_eq!(exchange.currency_reserve, INIT_LIQUIDITY + curr_amount);
         assert_eq!(exchange.token_reserve, INIT_LIQUIDITY - token_amount);
         assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - curr_amount);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE + token_amount));
+        assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_B), Some(INIT_BALANCE + token_amount));
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY + curr_amount);
         assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
+            Assets::maybe_balance(ASSET_A, pallet_account),
             Some(INIT_LIQUIDITY - token_amount)
         );
         assert_eq!(
@@ -681,8 +681,8 @@ fn currency_to_asset_transfer() {
         ));
 
         assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE - curr_amount);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE));
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_C), Some(INIT_BALANCE + token_amount));
+        assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_B), Some(INIT_BALANCE));
+        assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_C), Some(INIT_BALANCE + token_amount));
         assert_eq!(
             last_event(),
             crate::Event::CurrencyTradedForAsset(
@@ -717,11 +717,11 @@ fn asset_to_currency_fixed_input() {
         assert_eq!(exchange.currency_reserve, INIT_LIQUIDITY - curr_amount);
         assert_eq!(exchange.token_reserve, INIT_LIQUIDITY + token_amount);
         assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE + curr_amount);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE - token_amount));
+        assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_B), Some(INIT_BALANCE - token_amount));
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY - curr_amount);
         assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
+            Assets::maybe_balance(ASSET_A, pallet_account),
             Some(INIT_LIQUIDITY + token_amount)
         );
         assert_eq!(
@@ -967,7 +967,7 @@ fn asset_to_currency_transfer() {
             Some(ACCOUNT_C)
         ));
 
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE - token_amount));
+        assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_B), Some(INIT_BALANCE - token_amount));
         assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE);
         assert_eq!(Balances::free_balance(ACCOUNT_C), INIT_BALANCE + curr_amount);
         assert_eq!(
@@ -1004,11 +1004,11 @@ fn asset_to_currency_fixed_output() {
         assert_eq!(exchange.currency_reserve, INIT_LIQUIDITY - curr_amount);
         assert_eq!(exchange.token_reserve, INIT_LIQUIDITY + token_amount);
         assert_eq!(Balances::free_balance(ACCOUNT_B), INIT_BALANCE + curr_amount);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE - token_amount));
+        assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_B), Some(INIT_BALANCE - token_amount));
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY - curr_amount);
         assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
+            Assets::maybe_balance(ASSET_A, pallet_account),
             Some(INIT_LIQUIDITY + token_amount)
         );
         assert_eq!(
@@ -1061,22 +1061,22 @@ fn asset_to_asset_fixed_input() {
         assert_eq!(exchange_b.currency_reserve, INIT_LIQUIDITY + curr_amount);
 
         assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
+            Assets::maybe_balance(ASSET_A, ACCOUNT_B),
             Some(INIT_BALANCE - sold_token_amount)
         );
         assert_eq!(
-            Assets::maybe_balance(ASSET_B, &ACCOUNT_B),
+            Assets::maybe_balance(ASSET_B, ACCOUNT_B),
             Some(INIT_BALANCE + bought_token_amount)
         );
 
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY + INIT_LIQUIDITY);
         assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
+            Assets::maybe_balance(ASSET_A, pallet_account),
             Some(INIT_LIQUIDITY + sold_token_amount)
         );
         assert_eq!(
-            Assets::maybe_balance(ASSET_B, &pallet_account),
+            Assets::maybe_balance(ASSET_B, pallet_account),
             Some(INIT_LIQUIDITY - bought_token_amount)
         );
 
@@ -1410,11 +1410,11 @@ fn asset_to_asset_transfer() {
         ));
 
         assert_eq!(
-            Assets::maybe_balance(ASSET_A, &ACCOUNT_B),
+            Assets::maybe_balance(ASSET_A, ACCOUNT_B),
             Some(INIT_BALANCE - sold_token_amount)
         );
         assert_eq!(
-            Assets::maybe_balance(ASSET_B, &ACCOUNT_C),
+            Assets::maybe_balance(ASSET_B, ACCOUNT_C),
             Some(INIT_BALANCE + bought_token_amount)
         );
 
@@ -1482,18 +1482,18 @@ fn asset_to_asset_fixed_output() {
             Some(INIT_BALANCE - sold_token_amount)
         );
         assert_eq!(
-            Assets::maybe_balance(ASSET_B, &ACCOUNT_B),
+            Assets::maybe_balance(ASSET_B, ACCOUNT_B),
             Some(INIT_BALANCE + bought_token_amount)
         );
 
         let pallet_account = Test::pallet_account();
         assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY + INIT_LIQUIDITY);
         assert_eq!(
-            Assets::maybe_balance(ASSET_A, &pallet_account),
+            Assets::maybe_balance(ASSET_A, pallet_account),
             Some(INIT_LIQUIDITY + sold_token_amount)
         );
         assert_eq!(
-            Assets::maybe_balance(ASSET_B, &pallet_account),
+            Assets::maybe_balance(ASSET_B, pallet_account),
             Some(INIT_LIQUIDITY - bought_token_amount)
         );
 
@@ -1579,9 +1579,9 @@ fn trade_assets_back_and_forth() {
 
         // Account A should have received 4 (500-496) of both tokens as tx fees from account B
         assert_eq!(Balances::free_balance(ACCOUNT_A), INIT_BALANCE);
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_A), Some(INIT_BALANCE + 4));
-        assert_eq!(Assets::maybe_balance(ASSET_B, &ACCOUNT_A), Some(INIT_BALANCE + 4));
-        assert_eq!(Assets::maybe_balance(ASSET_A, &ACCOUNT_B), Some(INIT_BALANCE - 4));
+        assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_A), Some(INIT_BALANCE + 4));
+        assert_eq!(Assets::maybe_balance(ASSET_B, ACCOUNT_A), Some(INIT_BALANCE + 4));
+        assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_B), Some(INIT_BALANCE - 4));
         assert_eq!(Assets::maybe_balance(ASSET_B, &ACCOUNT_B), Some(INIT_BALANCE - 4));
     });
 }
