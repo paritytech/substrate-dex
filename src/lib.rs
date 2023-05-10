@@ -56,7 +56,6 @@ pub mod pallet {
     use sp_std::fmt::Debug;
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
     #[pallet::config]
