@@ -116,7 +116,7 @@ pub(crate) const ASSET_B: u32 = 101;
 pub(crate) const LIQ_TOKEN_A: u32 = 200;
 pub(crate) const LIQ_TOKEN_B: u32 = 201;
 // sum of liquidity token name + symbol, in bytes
-pub(crate) const RESERVED_AMOUNT: u128 = 21;
+pub(crate) const RESERVED_AMOUNT: u128 = 15;
 
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
     let mut storage = frame_system::GenesisConfig::default()

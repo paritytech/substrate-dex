@@ -240,7 +240,7 @@ pub mod pallet {
                     let decimals = T::AssetRegistry::decimals(asset_id.clone());
                     let name: Vec<u8> = asset_name
                         .into_iter()
-                        .chain(" Liquidity".to_string().into_bytes())
+                        .chain(" LP".to_string().into_bytes())
                         .collect();
                     let symbol: Vec<u8> = "lt"
                         .to_string()
@@ -1018,13 +1018,14 @@ pub mod pallet {
             .map_err(|_| Error::<T>::TokenIdTaken)?;
             let asset_symbol = T::AssetRegistry::symbol(asset_id.clone());
             if !asset_symbol.is_empty() {
-                let asset_name = T::AssetRegistry::name(asset_id.clone());
-                let decimals = T::AssetRegistry::decimals(asset_id);
+                let asset_name = T::AssetRegistry::name(asset_id);
+                // we assume the same
+                let decimals = 18;
                 let name: Vec<u8> = asset_name
                     .into_iter()
-                    .chain(" Liquidity".to_string().into_bytes())
+                    .chain(" LP".to_string().into_bytes())
                     .collect();
-                let symbol: Vec<u8> = "l"
+                let symbol: Vec<u8> = "LP"
                     .to_string()
                     .into_bytes()
                     .into_iter()

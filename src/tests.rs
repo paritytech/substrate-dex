@@ -25,9 +25,9 @@ fn create_exchange() {
         assert!(
             matches!(last_event(), crate::Event::ExchangeCreated(asset, _) if asset == ASSET_B)
         );
-        assert_eq!(Assets::name(&LIQ_TOKEN_B), "Token B Liquidity".as_bytes().to_vec());
-        assert_eq!(Assets::symbol(&LIQ_TOKEN_B), "lTB".as_bytes().to_vec());
-        assert_eq!(Assets::decimals(&LIQ_TOKEN_B), 12);
+        assert_eq!(Assets::name(&LIQ_TOKEN_B), "Token B LP".as_bytes().to_vec());
+        assert_eq!(Assets::symbol(&LIQ_TOKEN_B), "LPTB".as_bytes().to_vec());
+        assert_eq!(Assets::decimals(&LIQ_TOKEN_B), 18);
     })
 }
 
