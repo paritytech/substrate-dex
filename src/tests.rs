@@ -1,6 +1,7 @@
 use crate::mock::*;
 use crate::pallet::ConfigHelper;
 use crate::{Error, TradeAmount};
+use frame_support::traits::tokens::{Fortitude, Precision};
 use frame_support::{
     assert_noop, assert_ok,
     traits::{fungibles::Mutate, Currency},
@@ -857,7 +858,14 @@ fn asset_to_currency_not_enough_tokens() {
         let token_amount = 500;
         let min_currency = 498; // token amount (500) - provider fee (0.3%) should be ~498
 
-        <Test as crate::Config>::Assets::burn_from(ASSET_A, &ACCOUNT_B, INIT_BALANCE).unwrap();
+        <Test as crate::Config>::Assets::burn_from(
+            ASSET_A,
+            &ACCOUNT_B,
+            INIT_BALANCE,
+            Precision::Exact,
+            Fortitude::Polite,
+        )
+        .unwrap();
         assert_noop!(
             Dex::asset_to_currency(
                 RuntimeOrigin::signed(ACCOUNT_B),
@@ -1238,7 +1246,14 @@ fn asset_to_asset_not_enough_tokens() {
         // sold token amount (500) - provider fee (0.3%) should be ~498
         let bought_token_amount = 496; // currency amount (498) - provider fee (0.3%) should be ~496
 
-        <Test as crate::Config>::Assets::burn_from(ASSET_A, &ACCOUNT_B, INIT_BALANCE).unwrap();
+        <Test as crate::Config>::Assets::burn_from(
+            ASSET_A,
+            &ACCOUNT_B,
+            INIT_BALANCE,
+            Precision::Exact,
+            Fortitude::Polite,
+        )
+        .unwrap();
 
         assert_noop!(
             Dex::asset_to_asset(

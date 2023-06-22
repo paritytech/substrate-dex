@@ -46,8 +46,8 @@ pub mod pallet {
             FixedPointNumber, FixedPointOperand, FixedU128,
         },
         traits::{
-            fungibles::{Create, Destroy, Inspect, Mutate, Transfer},
-            tokens::{Balance, WithdrawConsequence},
+            fungibles::{Create, Destroy, Inspect, Mutate},
+            tokens::{Balance, Fortitude, Precision, Preservation, WithdrawConsequence},
             ExistenceRequirement,
         },
         transactional, PalletId,
@@ -93,7 +93,7 @@ pub mod pallet {
 
         /// The type for tradable assets.
         type Assets: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>
-            + Transfer<Self::AccountId>;
+            + Mutate<Self::AccountId>;
 
         /// The type for liquidity tokens.
         type AssetRegistry: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>
@@ -211,7 +211,7 @@ pub mod pallet {
                         provider,
                         &pallet_account,
                         *token_amount,
-                        true,
+                        Preservation::Preserve,
                     )
                     .is_ok(),
                     "Provider does not have enough amount of asset tokens"
@@ -995,7 +995,13 @@ pub mod pallet {
                 currency_amount,
                 ExistenceRequirement::KeepAlive,
             )?;
-            T::Assets::transfer(asset_id.clone(), &provider, &pallet_account, token_amount, true)?;
+            T::Assets::transfer(
+                asset_id.clone(),
+                &provider,
+                &pallet_account,
+                token_amount,
+                Preservation::Preserve,
+            )?;
             T::AssetRegistry::mint_into(
                 exchange.liquidity_token_id.clone(),
                 &provider,
@@ -1035,6 +1041,8 @@ pub mod pallet {
                 exchange.liquidity_token_id.clone(),
                 &provider,
                 liquidity_amount,
+                Precision::Exact,
+                Fortitude::Polite,
             )?;
             <T as pallet::Config>::Currency::transfer(
                 &pallet_account,
@@ -1042,7 +1050,13 @@ pub mod pallet {
                 currency_amount,
                 ExistenceRequirement::AllowDeath,
             )?;
-            T::Assets::transfer(asset_id.clone(), &pallet_account, &provider, token_amount, false)?;
+            T::Assets::transfer(
+                asset_id.clone(),
+                &pallet_account,
+                &provider,
+                token_amount,
+                Preservation::Expendable,
+            )?;
 
             // -------------------------- Balances update --------------------------
             exchange.currency_reserve.saturating_reduce(currency_amount);
@@ -1085,7 +1099,7 @@ pub mod pallet {
                 &pallet_account,
                 &recipient,
                 token_amount,
-                false,
+                Preservation::Expendable,
             )?;
 
             // -------------------------- Balances update --------------------------
@@ -1116,7 +1130,13 @@ pub mod pallet {
             // --------------------- Currency & token transfer ---------------------
             let asset_id = exchange.asset_id.clone();
             let pallet_account = T::pallet_account();
-            T::Assets::transfer(asset_id.clone(), &buyer, &pallet_account, token_amount, false)?;
+            T::Assets::transfer(
+                asset_id.clone(),
+                &buyer,
+                &pallet_account,
+                token_amount,
+                Preservation::Expendable,
+            )?;
             if recipient != pallet_account {
                 <T as pallet::Config>::Currency::transfer(
                     &pallet_account,
