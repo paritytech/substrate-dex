@@ -63,8 +63,8 @@ impl pallet_balances::Config for Test {
     type ReserveIdentifier = [u8; 8];
     type FreezeIdentifier = ();
     type HoldIdentifier = ();
-    type MaxFreezes = ();
-    type MaxHolds = ();
+    type MaxFreezes = ConstU32<0>;
+    type MaxHolds = ConstU32<0>;
 }
 
 impl pallet_assets::Config for Test {
