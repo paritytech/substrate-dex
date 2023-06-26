@@ -36,6 +36,10 @@ type AssetBalanceOf<T> = <T as Config>::AssetBalance;
 pub mod pallet {
     use super::*;
     use codec::EncodeLike;
+    use frame_support::traits::fungibles::metadata;
+    use frame_support::traits::fungibles::metadata::{
+        Inspect as MetadataInspect, Mutate as MetadataMutate,
+    };
     use frame_support::{
         pallet_prelude::*,
         sp_runtime::{
@@ -93,10 +97,12 @@ pub mod pallet {
 
         /// The type for tradable assets.
         type Assets: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>
+            + metadata::Inspect<Self::AccountId>
             + Transfer<Self::AccountId>;
 
         /// The type for liquidity tokens.
         type AssetRegistry: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>
+            + metadata::Mutate<Self::AccountId>
             + Mutate<Self::AccountId>
             + Create<Self::AccountId>
             + Destroy<Self::AccountId>;
@@ -226,6 +232,34 @@ pub mod pallet {
                     .is_ok(),
                     "Unexpected error while minting liquidity tokens for Provider"
                 );
+
+                // set liquidity token metadata
+                let asset_symbol = T::AssetRegistry::symbol(asset_id.clone());
+                if !asset_symbol.is_empty() {
+                    let asset_name = T::AssetRegistry::name(asset_id.clone());
+                    let decimals = T::AssetRegistry::decimals(asset_id.clone());
+                    let name: Vec<u8> = asset_name
+                        .into_iter()
+                        .chain(" LP".to_string().into_bytes())
+                        .collect();
+                    let symbol: Vec<u8> = "lt"
+                        .to_string()
+                        .into_bytes()
+                        .into_iter()
+                        .chain(asset_symbol)
+                        .collect();
+                    assert!(
+                        T::AssetRegistry::set(
+                            liquidity_token_id.clone(),
+                            &pallet_account.clone(),
+                            name,
+                            symbol,
+                            decimals
+                        )
+                        .is_ok(),
+                        "Cannot set metadata for liquidity token"
+                    );
+                }
 
                 // -------------------------- Balances update --------------------------
                 exchange
@@ -411,13 +445,7 @@ pub mod pallet {
             }
 
             // ----------------------- Create liquidity token ----------------------
-            T::AssetRegistry::create(
-                liquidity_token_id.clone(),
-                T::pallet_account(),
-                false,
-                <AssetBalanceOf<T>>::one(),
-            )
-            .map_err(|_| Error::<T>::TokenIdTaken)?;
+            Self::create_liquidity_token(asset_id.clone(), liquidity_token_id.clone())?;
 
             // -------------------------- Update storage ---------------------------
             let exchange = Exchange {
@@ -974,6 +1002,44 @@ pub mod pallet {
                     Ok((sold_token_amount, currency_amount, bought_token_amount))
                 }
             }
+        }
+
+        /// Creates a new liquidity token given an asset
+        fn create_liquidity_token(
+            asset_id: T::AssetId,
+            liquidity_token_id: T::AssetId,
+        ) -> DispatchResult {
+            T::AssetRegistry::create(
+                liquidity_token_id.clone(),
+                T::pallet_account(),
+                false,
+                <AssetBalanceOf<T>>::one(),
+            )
+            .map_err(|_| Error::<T>::TokenIdTaken)?;
+            let asset_symbol = T::AssetRegistry::symbol(asset_id.clone());
+            if !asset_symbol.is_empty() {
+                let asset_name = T::AssetRegistry::name(asset_id);
+                // we assume the same
+                let decimals = 18;
+                let name: Vec<u8> = asset_name
+                    .into_iter()
+                    .chain(" LP".to_string().into_bytes())
+                    .collect();
+                let symbol: Vec<u8> = "LP"
+                    .to_string()
+                    .into_bytes()
+                    .into_iter()
+                    .chain(asset_symbol)
+                    .collect();
+                T::AssetRegistry::set(
+                    liquidity_token_id,
+                    &T::pallet_account(),
+                    name,
+                    symbol,
+                    decimals,
+                )?;
+            }
+            Ok(())
         }
 
         /// Perform currency and asset transfers, mint liquidity token,
