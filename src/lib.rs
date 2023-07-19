@@ -1042,7 +1042,7 @@ pub mod pallet {
                 &provider,
                 liquidity_amount,
                 Precision::Exact,
-                Fortitude::Force,
+                Fortitude::Polite,
             )?;
             <T as pallet::Config>::Currency::transfer(
                 &pallet_account,

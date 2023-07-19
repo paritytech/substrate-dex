@@ -866,7 +866,7 @@ fn asset_to_currency_not_enough_tokens() {
             &ACCOUNT_B,
             INIT_BALANCE,
             Precision::Exact,
-            Fortitude::Force,
+            Fortitude::Polite,
         )
         .unwrap();
         assert_noop!(
@@ -1254,7 +1254,7 @@ fn asset_to_asset_not_enough_tokens() {
             &ACCOUNT_B,
             INIT_BALANCE,
             Precision::Exact,
-            Fortitude::Force,
+            Fortitude::Polite,
         )
         .unwrap();
 
