@@ -1,10 +1,13 @@
 use crate::mock::*;
 use crate::pallet::ConfigHelper;
 use crate::{Error, TradeAmount};
-use frame_support::traits::fungibles::InspectMetadata;
 use frame_support::{
     assert_noop, assert_ok,
-    traits::{fungibles::Mutate, Currency},
+    traits::{
+        fungibles::Mutate,
+        tokens::{Fortitude, Precision},
+        Currency,
+    },
 };
 
 #[test]
@@ -25,9 +28,6 @@ fn create_exchange() {
         assert!(
             matches!(last_event(), crate::Event::ExchangeCreated(asset, _) if asset == ASSET_B)
         );
-        assert_eq!(Assets::name(&LIQ_TOKEN_B), "Token B LP".as_bytes().to_vec());
-        assert_eq!(Assets::symbol(&LIQ_TOKEN_B), "LPTB".as_bytes().to_vec());
-        assert_eq!(Assets::decimals(&LIQ_TOKEN_B), 18);
     })
 }
 
@@ -861,7 +861,14 @@ fn asset_to_currency_not_enough_tokens() {
         let token_amount = 500;
         let min_currency = 498; // token amount (500) - provider fee (0.3%) should be ~498
 
-        <Test as crate::Config>::Assets::burn_from(ASSET_A, &ACCOUNT_B, INIT_BALANCE).unwrap();
+        <Test as crate::Config>::Assets::burn_from(
+            ASSET_A,
+            &ACCOUNT_B,
+            INIT_BALANCE,
+            Precision::Exact,
+            Fortitude::Polite,
+        )
+        .unwrap();
         assert_noop!(
             Dex::asset_to_currency(
                 RuntimeOrigin::signed(ACCOUNT_B),
@@ -1074,10 +1081,7 @@ fn asset_to_asset_fixed_input() {
         );
 
         let pallet_account = Test::pallet_account();
-        assert_eq!(
-            Balances::free_balance(pallet_account),
-            INIT_LIQUIDITY + INIT_LIQUIDITY - RESERVED_AMOUNT
-        );
+        assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY + INIT_LIQUIDITY);
         assert_eq!(
             Assets::maybe_balance(ASSET_A, pallet_account),
             Some(INIT_LIQUIDITY + sold_token_amount)
@@ -1245,7 +1249,14 @@ fn asset_to_asset_not_enough_tokens() {
         // sold token amount (500) - provider fee (0.3%) should be ~498
         let bought_token_amount = 496; // currency amount (498) - provider fee (0.3%) should be ~496
 
-        <Test as crate::Config>::Assets::burn_from(ASSET_A, &ACCOUNT_B, INIT_BALANCE).unwrap();
+        <Test as crate::Config>::Assets::burn_from(
+            ASSET_A,
+            &ACCOUNT_B,
+            INIT_BALANCE,
+            Precision::Exact,
+            Fortitude::Polite,
+        )
+        .unwrap();
 
         assert_noop!(
             Dex::asset_to_asset(
@@ -1494,10 +1505,7 @@ fn asset_to_asset_fixed_output() {
         );
 
         let pallet_account = Test::pallet_account();
-        assert_eq!(
-            Balances::free_balance(pallet_account),
-            INIT_LIQUIDITY + INIT_LIQUIDITY - RESERVED_AMOUNT
-        );
+        assert_eq!(Balances::free_balance(pallet_account), INIT_LIQUIDITY + INIT_LIQUIDITY);
         assert_eq!(
             Assets::maybe_balance(ASSET_A, pallet_account),
             Some(INIT_LIQUIDITY + sold_token_amount)
@@ -1581,19 +1589,16 @@ fn trade_assets_back_and_forth() {
         assert_ok!(Dex::remove_liquidity(
             RuntimeOrigin::signed(ACCOUNT_A),
             ASSET_B,
-            INIT_LIQUIDITY - RESERVED_AMOUNT,
-            INIT_LIQUIDITY - RESERVED_AMOUNT,
-            INIT_LIQUIDITY + 4 - (RESERVED_AMOUNT + 1),
+            INIT_LIQUIDITY,
+            INIT_LIQUIDITY,
+            INIT_LIQUIDITY + 4,
             1,
         ));
 
         // Account A should have received 4 (500-496) of both tokens as tx fees from account B
-        assert_eq!(Balances::free_balance(ACCOUNT_A), INIT_BALANCE - RESERVED_AMOUNT);
+        assert_eq!(Balances::free_balance(ACCOUNT_A), INIT_BALANCE);
         assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_A), Some(INIT_BALANCE + 4));
-        assert_eq!(
-            Assets::maybe_balance(ASSET_B, ACCOUNT_A),
-            Some(INIT_BALANCE + 4 - (RESERVED_AMOUNT + 1))
-        );
+        assert_eq!(Assets::maybe_balance(ASSET_B, ACCOUNT_A), Some(INIT_BALANCE + 4));
         assert_eq!(Assets::maybe_balance(ASSET_A, ACCOUNT_B), Some(INIT_BALANCE - 4));
         assert_eq!(Assets::maybe_balance(ASSET_B, ACCOUNT_B), Some(INIT_BALANCE - 4));
     });

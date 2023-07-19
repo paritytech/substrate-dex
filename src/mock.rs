@@ -61,6 +61,10 @@ impl pallet_balances::Config for Test {
     type MaxLocks = ();
     type MaxReserves = ();
     type ReserveIdentifier = [u8; 8];
+    type FreezeIdentifier = ();
+    type MaxFreezes = ();
+    type HoldIdentifier = ();
+    type MaxHolds = ();
 }
 
 impl pallet_assets::Config for Test {
@@ -115,8 +119,6 @@ pub(crate) const ASSET_A: u32 = 100;
 pub(crate) const ASSET_B: u32 = 101;
 pub(crate) const LIQ_TOKEN_A: u32 = 200;
 pub(crate) const LIQ_TOKEN_B: u32 = 201;
-// sum of liquidity token name + symbol, in bytes
-pub(crate) const RESERVED_AMOUNT: u128 = 15;
 
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
     let mut storage = frame_system::GenesisConfig::default()
@@ -135,7 +137,7 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 
     pallet_assets::GenesisConfig::<Test> {
         assets: vec![(ASSET_A, ACCOUNT_A, true, 1), (ASSET_B, ACCOUNT_B, true, 1)],
-        metadata: vec![(ASSET_B, "Token B".as_bytes().to_vec(), "TB".as_bytes().to_vec(), 12)],
+        metadata: vec![],
         accounts: vec![
             (ASSET_A, ACCOUNT_A, INIT_BALANCE),
             (ASSET_A, ACCOUNT_B, INIT_BALANCE),
