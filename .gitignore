@@ -11,3 +11,5 @@ Cargo.lock
 
 #Visual Studio Code files
 /.vscode
+
+.DS_Store
