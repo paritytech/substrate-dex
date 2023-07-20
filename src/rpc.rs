@@ -4,7 +4,7 @@ use scale_info::prelude::format;
 use sp_std::fmt::Debug;
 use sp_std::vec::Vec;
 
-#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, scale_info::TypeInfo)]
 pub enum RpcError {
     ExchangeNotFound,
     NotEnoughLiquidity,
