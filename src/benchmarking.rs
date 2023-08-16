@@ -16,7 +16,7 @@ const LIQ_TOKEN_B: u32 = 12;
 
 fn prepare_exchange<T>(asset_id: u32, liquidity_token_id: u32) -> DispatchResult
 where
-    T: frame_system::Config<BlockNumber = u32>,
+    frame_system::pallet_prelude::BlockNumberFor<T>: From<u32>,
     T: Config<AssetId = u32, AssetBalance = u128>,
     T::Currency: Currency<AccountIdOf<T>, Balance = u128>,
     T::Assets: Create<AccountIdOf<T>> + Mutate<AccountIdOf<T>>,
@@ -38,7 +38,7 @@ where
 benchmarks! {
     where_clause {
         where
-            T: frame_system::Config<BlockNumber = u32>,
+            frame_system::pallet_prelude::BlockNumberFor<T>: From<u32>,
             T: Config<AssetId = u32, AssetBalance = u128>,
             T::Currency: Currency<AccountIdOf<T>, Balance = u128>,
             T::Assets: Create<AccountIdOf<T>> + Mutate<AccountIdOf<T>>,
@@ -58,7 +58,7 @@ benchmarks! {
         prepare_exchange::<T>(ASSET_A, LIQ_TOKEN_A)?;
         let caller: T::AccountId = whitelisted_caller();
         // Token amount is 2, not 1 because of the `+1` in liquidity added formula
-    }: _(RawOrigin::Signed(caller), ASSET_A, 1, 1, 2, 1)
+    }: _(RawOrigin::Signed(caller), ASSET_A, 1, 1, 2, 1.into())
     verify {
         let exchange = Pallet::<T>::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, INIT_LIQUIDITY + 1);
@@ -68,7 +68,7 @@ benchmarks! {
     remove_liquidity {
         prepare_exchange::<T>(ASSET_A, LIQ_TOKEN_A)?;
         let caller: T::AccountId = whitelisted_caller();
-    }: _(RawOrigin::Signed(caller), ASSET_A, 1, 1, 1, 1)
+    }: _(RawOrigin::Signed(caller), ASSET_A, 1, 1, 1, 1.into())
     verify {
         let exchange = Pallet::<T>::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, INIT_LIQUIDITY - 1);
@@ -80,7 +80,7 @@ benchmarks! {
         let caller: T::AccountId = whitelisted_caller();
         let input_amount = 500;
         let min_output = 498; // sold amount (500) - provider fee (0.3%) should be ~498
-    }: _(RawOrigin::Signed(caller), ASSET_A, TradeAmount::FixedInput{input_amount, min_output}, 1, None)
+    }: _(RawOrigin::Signed(caller), ASSET_A, TradeAmount::FixedInput{input_amount, min_output}, 1.into(), None)
     verify {
         let exchange = Pallet::<T>::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, INIT_LIQUIDITY + input_amount);
@@ -92,7 +92,7 @@ benchmarks! {
         let caller: T::AccountId = whitelisted_caller();
         let input_amount = 500;
         let min_output = 498; // sold amount (500) - provider fee (0.3%) should be ~498
-    }: _(RawOrigin::Signed(caller), ASSET_A, TradeAmount::FixedInput{input_amount, min_output}, 1, None)
+    }: _(RawOrigin::Signed(caller), ASSET_A, TradeAmount::FixedInput{input_amount, min_output}, 1.into(), None)
     verify {
         let exchange = Pallet::<T>::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange.currency_reserve, INIT_LIQUIDITY - min_output);
@@ -106,7 +106,7 @@ benchmarks! {
         let input_amount = 500;
         let currency_amount = 498; // sold amount (500) - provider fee (0.3%) should be ~498
         let min_output = 496; // currency amount (498) - provider fee (0.3%) should be ~496
-    }: _(RawOrigin::Signed(caller), ASSET_A, ASSET_B, TradeAmount::FixedInput{input_amount, min_output}, 1, None)
+    }: _(RawOrigin::Signed(caller), ASSET_A, ASSET_B, TradeAmount::FixedInput{input_amount, min_output}, 1.into(), None)
     verify {
         let exchange_a = Pallet::<T>::exchanges(ASSET_A).unwrap();
         assert_eq!(exchange_a.currency_reserve, INIT_LIQUIDITY - currency_amount);
