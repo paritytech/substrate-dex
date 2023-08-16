@@ -1,23 +1,21 @@
 use crate as dex;
 use frame_support::traits::{
-    AsEnsureOriginWithArg, ConstU128, ConstU16, ConstU32, Everything, GenesisBuild,
+    AsEnsureOriginWithArg, ConstU128, ConstU16, ConstU32, ConstU64, Everything,
 };
 use frame_support::{parameter_types, PalletId};
 use frame_system::{EnsureRoot, EnsureSigned};
 use sp_core::H256;
-use sp_runtime::traits::{BlakeTwo256, Identity, IdentityLookup};
+use sp_runtime::{
+    traits::{BlakeTwo256, Identity, IdentityLookup},
+    BuildStorage,
+};
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
-type Header = sp_runtime::generic::Header<u32, BlakeTwo256>;
 
 frame_support::construct_runtime!(
-    pub enum Test where
-        Block = Block,
-        NodeBlock = Block,
-        UncheckedExtrinsic = UncheckedExtrinsic,
+    pub enum Test
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+        System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Assets: pallet_assets::{Pallet, Call, Storage, Config<T>, Event<T>},
         Dex: dex::{Pallet, Call, Storage, Event<T>},
@@ -30,15 +28,12 @@ impl frame_system::Config for Test {
     type BlockLength = ();
     type RuntimeOrigin = RuntimeOrigin;
     type RuntimeCall = RuntimeCall;
-    type Index = u32;
-    type BlockNumber = u32;
     type Hash = H256;
     type Hashing = BlakeTwo256;
     type AccountId = u64;
     type Lookup = IdentityLookup<Self::AccountId>;
-    type Header = Header;
     type RuntimeEvent = RuntimeEvent;
-    type BlockHashCount = ConstU32<250>;
+    type BlockHashCount = ConstU64<250>;
     type DbWeight = ();
     type Version = ();
     type PalletInfo = PalletInfo;
@@ -49,6 +44,8 @@ impl frame_system::Config for Test {
     type SS58Prefix = ConstU16<42>;
     type OnSetCode = ();
     type MaxConsumers = ConstU32<16>;
+    type Nonce = u64;
+    type Block = Block;
 }
 
 impl pallet_balances::Config for Test {
@@ -63,7 +60,7 @@ impl pallet_balances::Config for Test {
     type ReserveIdentifier = [u8; 8];
     type FreezeIdentifier = ();
     type MaxFreezes = ();
-    type HoldIdentifier = ();
+    type RuntimeHoldReason = ();
     type MaxHolds = ();
 }
 
@@ -121,8 +118,8 @@ pub(crate) const LIQ_TOKEN_A: u32 = 200;
 pub(crate) const LIQ_TOKEN_B: u32 = 201;
 
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-    let mut storage = frame_system::GenesisConfig::default()
-        .build_storage::<Test>()
+    let mut storage = frame_system::GenesisConfig::<Test>::default()
+        .build_storage()
         .unwrap();
 
     pallet_balances::GenesisConfig::<Test> {

@@ -156,7 +156,6 @@ pub mod pallet {
         pub exchanges: Vec<GenesisExchangeInfo<T>>,
     }
 
-    #[cfg(feature = "std")]
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> GenesisConfig<T> {
             GenesisConfig { exchanges: vec![] }
@@ -164,7 +163,7 @@ pub mod pallet {
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
         fn build(&self) {
             let pallet_account = T::pallet_account();
             for (provider, asset_id, liquidity_token_id, currency_amount, token_amount) in
@@ -472,7 +471,7 @@ pub mod pallet {
             currency_amount: BalanceOf<T>,
             min_liquidity: AssetBalanceOf<T>,
             max_tokens: AssetBalanceOf<T>,
-            deadline: T::BlockNumber,
+            deadline: BlockNumberFor<T>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
             let caller = ensure_signed(origin)?;
@@ -541,7 +540,7 @@ pub mod pallet {
             liquidity_amount: AssetBalanceOf<T>,
             min_currency: BalanceOf<T>,
             min_tokens: AssetBalanceOf<T>,
-            deadline: T::BlockNumber,
+            deadline: BlockNumberFor<T>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
             let caller = ensure_signed(origin)?;
@@ -606,7 +605,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
             amount: TradeAmount<BalanceOf<T>, AssetBalanceOf<T>>,
-            deadline: T::BlockNumber,
+            deadline: BlockNumberFor<T>,
             recipient: Option<AccountIdOf<T>>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
@@ -662,7 +661,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
             amount: TradeAmount<AssetBalanceOf<T>, BalanceOf<T>>,
-            deadline: T::BlockNumber,
+            deadline: BlockNumberFor<T>,
             recipient: Option<AccountIdOf<T>>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
@@ -718,7 +717,7 @@ pub mod pallet {
             sold_asset_id: AssetIdOf<T>,
             bought_asset_id: AssetIdOf<T>,
             amount: TradeAmount<AssetBalanceOf<T>, AssetBalanceOf<T>>,
-            deadline: T::BlockNumber,
+            deadline: BlockNumberFor<T>,
             recipient: Option<AccountIdOf<T>>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
@@ -756,7 +755,7 @@ pub mod pallet {
             <Exchanges<T>>::get(asset_id.clone()).ok_or(Error::<T>::ExchangeNotFound)
         }
 
-        fn check_deadline(deadline: &T::BlockNumber) -> Result<(), Error<T>> {
+        fn check_deadline(deadline: &BlockNumberFor<T>) -> Result<(), Error<T>> {
             ensure!(deadline >= &<frame_system::Pallet<T>>::block_number(), Error::DeadlinePassed);
             Ok(())
         }
