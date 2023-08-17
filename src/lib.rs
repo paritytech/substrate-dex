@@ -156,6 +156,7 @@ pub mod pallet {
         pub exchanges: Vec<GenesisExchangeInfo<T>>,
     }
 
+    #[cfg(feature = "std")]
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> GenesisConfig<T> {
             GenesisConfig { exchanges: vec![] }
@@ -163,7 +164,7 @@ pub mod pallet {
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             let pallet_account = T::pallet_account();
             for (provider, asset_id, liquidity_token_id, currency_amount, token_amount) in
