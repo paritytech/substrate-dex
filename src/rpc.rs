@@ -1,5 +1,5 @@
 use crate::{AssetBalanceOf, AssetIdOf, BalanceOf, Config, ConfigHelper, Error, Pallet};
-use codec::{Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
 use scale_info::prelude::format;
 use sp_std::fmt::Debug;
 use sp_std::vec::Vec;

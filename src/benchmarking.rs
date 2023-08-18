@@ -1,11 +1,13 @@
-use crate::{AccountIdOf, Call, Config, Pallet, TradeAmount};
 use frame_benchmarking::{benchmarks, whitelisted_caller};
 use frame_support::pallet_prelude::DispatchResult;
 use frame_support::traits::{
     fungibles::{Create, Mutate},
     Currency,
 };
+use frame_system::mocking::MockBlock;
 use frame_system::RawOrigin;
+
+use crate::{AccountIdOf, Call, Config, Pallet, TradeAmount};
 
 const INIT_BALANCE: u128 = 1_000_000_000_000_000;
 const INIT_LIQUIDITY: u128 = 1_000_000_000_000;
@@ -16,7 +18,7 @@ const LIQ_TOKEN_B: u32 = 12;
 
 fn prepare_exchange<T>(asset_id: u32, liquidity_token_id: u32) -> DispatchResult
 where
-    T: frame_system::Config<BlockNumber = u32>,
+    T: frame_system::Config<Block = MockBlock<T>>,
     T: Config<AssetId = u32, AssetBalance = u128>,
     T::Currency: Currency<AccountIdOf<T>, Balance = u128>,
     T::Assets: Create<AccountIdOf<T>> + Mutate<AccountIdOf<T>>,
@@ -38,7 +40,7 @@ where
 benchmarks! {
     where_clause {
         where
-            T: frame_system::Config<BlockNumber = u32>,
+            T: frame_system::Config<Block = MockBlock<T>>,
             T: Config<AssetId = u32, AssetBalance = u128>,
             T::Currency: Currency<AccountIdOf<T>, Balance = u128>,
             T::Assets: Create<AccountIdOf<T>> + Mutate<AccountIdOf<T>>,

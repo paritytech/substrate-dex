@@ -1,9 +1,9 @@
-use codec::Codec;
 use jsonrpsee::{
     core::{async_trait, Error as RpcError, RpcResult},
     proc_macros::rpc,
     types::error::{CallError, ErrorObject},
 };
+use parity_scale_codec::Codec;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::MaybeDisplay;

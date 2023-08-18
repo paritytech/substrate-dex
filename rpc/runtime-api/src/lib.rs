@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::Codec;
 pub use pallet_dex::rpc::{RpcError, RpcResult};
+use parity_scale_codec::Codec;
 use sp_runtime::traits::MaybeDisplay;
 
 sp_api::decl_runtime_apis! {

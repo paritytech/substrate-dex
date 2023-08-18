@@ -27,6 +27,13 @@ use sp_std::prelude::*;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
+use sp_runtime::{
+    traits::{
+        AccountIdConversion, CheckedAdd, CheckedMul, CheckedSub, Convert, One, Saturating, Zero,
+    },
+    FixedPointNumber, FixedPointOperand, FixedU128,
+};
+
 type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountIdOf<T>>>::Balance;
 type AssetIdOf<T> = <T as Config>::AssetId;
@@ -35,16 +42,10 @@ type AssetBalanceOf<T> = <T as Config>::AssetBalance;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use codec::EncodeLike;
+    use parity_scale_codec::EncodeLike;
+
     use frame_support::{
         pallet_prelude::*,
-        sp_runtime::{
-            traits::{
-                AccountIdConversion, CheckedAdd, CheckedMul, CheckedSub, Convert, One, Saturating,
-                Zero,
-            },
-            FixedPointNumber, FixedPointOperand, FixedU128,
-        },
         traits::{
             fungibles::{Create, Destroy, Inspect, Mutate},
             tokens::{Balance, Fortitude, Precision, Preservation, WithdrawConsequence},
@@ -156,7 +157,6 @@ pub mod pallet {
         pub exchanges: Vec<GenesisExchangeInfo<T>>,
     }
 
-    #[cfg(feature = "std")]
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> GenesisConfig<T> {
             GenesisConfig { exchanges: vec![] }
@@ -164,7 +164,7 @@ pub mod pallet {
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
         fn build(&self) {
             let pallet_account = T::pallet_account();
             for (provider, asset_id, liquidity_token_id, currency_amount, token_amount) in
@@ -221,7 +221,7 @@ pub mod pallet {
                     T::AssetRegistry::mint_into(
                         liquidity_token_id.clone(),
                         provider,
-                        liquidity_minted
+                        liquidity_minted,
                     )
                     .is_ok(),
                     "Unexpected error while minting liquidity tokens for Provider"
@@ -238,7 +238,7 @@ pub mod pallet {
     }
 
     #[pallet::event]
-    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    #[pallet::generate_deposit(pub (super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// A new exchange was created [asset_id, liquidity_token_id]
         ExchangeCreated(AssetIdOf<T>, AssetIdOf<T>),
@@ -390,7 +390,7 @@ pub mod pallet {
         ///   * `CurrencyAmountTooLow` – Specified `currency_amount` is lower than `MinDeposit`.
         ///   * `TokenAmountIsZero` – Specified `token_amount` equals 0.
         #[pallet::call_index(0)]
-        #[pallet::weight(<T as Config>::WeightInfo::create_exchange())]
+        #[pallet::weight(< T as Config >::WeightInfo::create_exchange())]
         #[transactional]
         pub fn create_exchange(
             origin: OriginFor<T>,
@@ -465,14 +465,14 @@ pub mod pallet {
         ///   * `MinLiquidityTooHigh` – The amount of liquidity tokes which would be minted by depositing the specified
         ///     `currency_amount` is lower than the specified `min_liquidity`.
         #[pallet::call_index(1)]
-        #[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+        #[pallet::weight(< T as Config >::WeightInfo::add_liquidity())]
         pub fn add_liquidity(
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
             currency_amount: BalanceOf<T>,
             min_liquidity: AssetBalanceOf<T>,
             max_tokens: AssetBalanceOf<T>,
-            deadline: T::BlockNumber,
+            deadline: BlockNumberFor<T>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
             let caller = ensure_signed(origin)?;
@@ -534,14 +534,14 @@ pub mod pallet {
         ///   * `MinTokensTooHigh` – The amount of tokens which could be received in exchange for the specified
         ///     `liquidity_amount` is lower than the specified `min_tokens`.
         #[pallet::call_index(2)]
-        #[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
+        #[pallet::weight(< T as Config >::WeightInfo::remove_liquidity())]
         pub fn remove_liquidity(
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
             liquidity_amount: AssetBalanceOf<T>,
             min_currency: BalanceOf<T>,
             min_tokens: AssetBalanceOf<T>,
-            deadline: T::BlockNumber,
+            deadline: BlockNumberFor<T>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
             let caller = ensure_signed(origin)?;
@@ -601,12 +601,12 @@ pub mod pallet {
         ///   * `BalanceTooLow` – The available currency balance of the caller account is not enough to perform the trade.
         ///   * `Overflow` – An overflow occurred during price computation.
         #[pallet::call_index(3)]
-        #[pallet::weight(<T as Config>::WeightInfo::currency_to_asset())]
+        #[pallet::weight(< T as Config >::WeightInfo::currency_to_asset())]
         pub fn currency_to_asset(
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
             amount: TradeAmount<BalanceOf<T>, AssetBalanceOf<T>>,
-            deadline: T::BlockNumber,
+            deadline: BlockNumberFor<T>,
             recipient: Option<AccountIdOf<T>>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
@@ -657,12 +657,12 @@ pub mod pallet {
         ///   * `NotEnoughTokens` – The available asset balance of the caller account is not enough to perform the trade.
         ///   * `Overflow` – An overflow occurred during price computation.
         #[pallet::call_index(4)]
-        #[pallet::weight(<T as Config>::WeightInfo::asset_to_currency())]
+        #[pallet::weight(< T as Config >::WeightInfo::asset_to_currency())]
         pub fn asset_to_currency(
             origin: OriginFor<T>,
             asset_id: AssetIdOf<T>,
             amount: TradeAmount<AssetBalanceOf<T>, BalanceOf<T>>,
-            deadline: T::BlockNumber,
+            deadline: BlockNumberFor<T>,
             recipient: Option<AccountIdOf<T>>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
@@ -712,13 +712,13 @@ pub mod pallet {
         ///   * `NotEnoughTokens` – The available sold asset balance of the caller account is not enough to perform the trade.
         ///   * `Overflow` – An overflow occurred during price computation.
         #[pallet::call_index(5)]
-        #[pallet::weight(<T as Config>::WeightInfo::asset_to_asset())]
+        #[pallet::weight(< T as Config >::WeightInfo::asset_to_asset())]
         pub fn asset_to_asset(
             origin: OriginFor<T>,
             sold_asset_id: AssetIdOf<T>,
             bought_asset_id: AssetIdOf<T>,
             amount: TradeAmount<AssetBalanceOf<T>, AssetBalanceOf<T>>,
-            deadline: T::BlockNumber,
+            deadline: BlockNumberFor<T>,
             recipient: Option<AccountIdOf<T>>,
         ) -> DispatchResult {
             // -------------------------- Validation part --------------------------
@@ -756,7 +756,7 @@ pub mod pallet {
             <Exchanges<T>>::get(asset_id.clone()).ok_or(Error::<T>::ExchangeNotFound)
         }
 
-        fn check_deadline(deadline: &T::BlockNumber) -> Result<(), Error<T>> {
+        fn check_deadline(deadline: &BlockNumberFor<T>) -> Result<(), Error<T>> {
             ensure!(deadline >= &<frame_system::Pallet<T>>::block_number(), Error::DeadlinePassed);
             Ok(())
         }
