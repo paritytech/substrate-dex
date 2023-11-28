@@ -1,6 +1,6 @@
 [package]
 name = "pallet-dex-rpc"
-version = "0.0.1"
+version = "0.0.2"
 description = "RPC interface fot the DEX pallet"
 authors = ["Adam Wierzbicki, Parity Technologies <admin@parity.io>"]
 edition = "2021"
@@ -14,14 +14,14 @@ targets = ["x86_64-unknown-linux-gnu"]
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = ["derive"] }
 jsonrpsee = { version = "0.16.2", features = ["server", "macros"] }
 
-pallet-dex-rpc-runtime-api = { version = "0.0.1", path = "./runtime-api" }
+pallet-dex-rpc-runtime-api = {  path = "./runtime-api" }
 
-sp-api = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0" }
-sp-blockchain = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0" }
+sp-api = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.3.0" }
+sp-blockchain = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.3.0" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.3.0" }
 
 [dev-dependencies]
-pallet-dex = { version = "0.0.1", path = ".." }
-sc-client-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
-substrate-test-runtime-client = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
+pallet-dex = { path = ".." }
+sc-client-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.3.0" }
+substrate-test-runtime-client = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.3.0" }
 tokio = { version = "1.21.2", features = ["macros", "time", "parking_lot"] }

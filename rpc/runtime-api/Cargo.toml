@@ -1,6 +1,6 @@
 [package]
 name = "pallet-dex-rpc-runtime-api"
-version = "0.0.1"
+version = "0.0.2"
 description = "RPC runtime API fot the DEX pallet"
 authors = ["Adam Wierzbicki, Parity Technologies <admin@parity.io>"]
 edition = "2021"
@@ -13,9 +13,9 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = ["derive"] }
 
-pallet-dex = { version = "0.0.1", default-features = false, path = "../.." }
-sp-api = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0" }
+pallet-dex = { default-features = false, path = "../.." }
+sp-api = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.3.0" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.3.0" }
 
 [features]
 default = ["std"]
