@@ -375,10 +375,7 @@ mod mock {
     }
 
     impl<Block: BlockT> HeaderBackend<Block> for TestApi {
-        fn header(
-            &self,
-            _id: <Block as BlockT>::Hash,
-        ) -> Result<Option<Block::Header>, sp_blockchain::Error> {
+        fn header(&self, _id: Block::Hash) -> Result<Option<Block::Header>, sp_blockchain::Error> {
             Ok(None)
         }
 
@@ -397,7 +394,7 @@ mod mock {
 
         fn status(
             &self,
-            _id: <Block as BlockT>::Hash,
+            _id: Block::Hash,
         ) -> Result<sc_client_api::blockchain::BlockStatus, sp_blockchain::Error> {
             Ok(sc_client_api::blockchain::BlockStatus::Unknown)
         }
